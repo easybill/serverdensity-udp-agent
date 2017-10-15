@@ -1,0 +1,11 @@
+[package]
+name = "foo"
+version = "0.1.0"
+authors = ["timglabisch <tim@ainfach.de>"]
+
+[dependencies]
+byteorder = "1"
+reqwest = "0.8.*"
+clap = "*"
+url = "*"
+md5 = "0.3.*"

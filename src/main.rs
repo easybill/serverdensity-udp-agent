@@ -1,13 +1,10 @@
 extern crate byteorder;
-extern crate futures;
-extern crate hyper;
-extern crate tokio_core;
 extern crate clap;
 extern crate url;
 extern crate md5;
+extern crate reqwest;
 
-use url::Url;
-use clap::{Arg, App, SubCommand};
+use clap::{Arg, App};
 use std::net::UdpSocket;
 use byteorder::{BigEndian};
 use byteorder::ByteOrder;
@@ -15,14 +12,7 @@ use std::sync::mpsc::channel;
 use std::thread;
 use std::collections::HashMap;
 use std::time::{SystemTime, Duration};
-use std::io::{self, Write};
-use futures::{Future, Stream};
-use hyper::Client;
-use tokio_core::reactor::Core;
-use hyper::{Method, Request};
-use hyper::header;
-use url::percent_encoding::{utf8_percent_encode, DEFAULT_ENCODE_SET};
-use std::str::FromStr;
+use std::io::Read;
 
 #[derive(Debug)]
 struct Metric {
@@ -68,10 +58,9 @@ fn main() {
 
         let mut sys_time = SystemTime::now();
 
-        let mut core = Core::new().expect("could not create async http client.");
-        let client = Client::new(&core.handle());
+        let client = reqwest::Client::new();
 
-        let uri = hyper::Uri::from_str(&format!("http://127.0.0.1:1337/alerts/postbacks?token={}", &config.token)).expect("could not parse url");
+        let uri = &format!("http://127.0.0.1:1337/alerts/postbacks?token={}", &config.token);
 
         loop {
 
@@ -83,7 +72,7 @@ fn main() {
             };
 
             
-            if sys_time.elapsed().unwrap().as_secs() >= 10 {
+            if sys_time.elapsed().unwrap().as_secs() >= 5 {
 
                 sys_time = SystemTime::now();
 
@@ -92,7 +81,6 @@ fn main() {
                 }
 
                 let x = metricmap.iter().map(|(k, v)| {
-                    println!("{}", &v);
                     format!("\"{}\":\"{}\"", k, v)
                 })
                 .collect::<Vec<String>>()
@@ -104,30 +92,24 @@ fn main() {
                 payload.push_str(&x);
                 payload.push_str("}}");
 
-                let hash = format!("{:x}", md5::compute(&payload));
-
-                let encoded_payload = utf8_percent_encode(&payload, DEFAULT_ENCODE_SET).to_string();
-
-                let body = format!("hash={}&data={}", hash, encoded_payload);
-
                 metricmap = HashMap::new();
 
-                let mut req = Request::new(Method::Post, uri.clone());
-                req.headers_mut().set(header::ContentType("application/x-www-form-encoded".parse().unwrap()));
-                req.set_body(body);
+                let res = client.post(uri)
+                .form(&[
+                    ("payload", &payload),
+                    ("hash", &format!("{:x}", md5::compute(&payload)))
+                ])
+                .send();
 
-                let ddd = client.request(req).and_then(|res| {
-                    println!("Response: {}", res.status());
-
-                    res.body().for_each(|chunk| {
-                        io::stdout()
-                            .write_all(&chunk)
-                            .map(|_| ())
-                            .map_err(From::from)
-                    })
-
-                });
-                core.run(ddd).unwrap();
+                match res {
+                    Ok(r) => {
+                        println!("submitted to serverdensity, status {:?}", r.status());
+                    },
+                    Err(e) => {
+                        println!("failed to send to serverdensity, status {:?}", e.status());
+                        println!("error: {:?}", e);
+                    }
+                }
             }
 
         }
