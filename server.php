@@ -1,3 +1,3 @@
 <?php
 
-echo var_export($_POST, true);
+echo var_export($_SERVER, true);

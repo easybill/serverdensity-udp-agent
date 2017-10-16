@@ -3,6 +3,7 @@ extern crate clap;
 extern crate url;
 extern crate md5;
 extern crate reqwest;
+#[macro_use] extern crate hyper;
 
 use clap::{Arg, App};
 use std::net::UdpSocket;
@@ -13,6 +14,10 @@ use std::thread;
 use std::collections::HashMap;
 use std::time::{SystemTime, Duration};
 use std::io::Read;
+use hyper::header::Headers;
+
+header! { (XForwardedHost, "X-Forwarded-Host") => [String] }
+
 
 #[derive(Debug)]
 struct Metric {
@@ -22,7 +27,8 @@ struct Metric {
 
 struct Config {
     pub token: String,
-    pub account_url: String
+    pub account_url: String,
+    pub agent_key: String
 }
 
 fn main() {
@@ -35,19 +41,23 @@ fn main() {
             .help("Server Density API Token")
             .long("token")
             .required(true)
-            .takes_value(true)
-            .index(1))
+            .takes_value(true))
         .arg(Arg::with_name("account-url")
             .help("Set this to your Server Density account url, e.g. example.serverdensity.io")
             .long("account-url")
             .required(true)
-            .takes_value(true)
-            .index(2))
+            .takes_value(true))
+        .arg(Arg::with_name("agent-key")
+            .help("This is the agent key used to identify the device when payloads are processed. You can find this in the top left corner when you view a device page in your UI")
+            .long("agent-key")
+            .required(true)
+            .takes_value(true))
         .get_matches();
 
     let config = Config {
         token: matches.value_of("token").unwrap().to_string(),
-        account_url: matches.value_of("account-url").unwrap().to_string()
+        account_url: matches.value_of("account-url").unwrap().to_string(),
+        agent_key: matches.value_of("agent-key").unwrap().to_string()
     };
 
     let (sender, receiver) = channel::<Metric>();
@@ -60,7 +70,7 @@ fn main() {
 
         let client = reqwest::Client::new();
 
-        let uri = &format!("http://127.0.0.1:1337/alerts/postbacks?token={}", &config.token);
+        let uri = &format!("https://api.serverdensity.io/alerts/postbacks?token={}", &config.token);
 
         loop {
 
@@ -72,7 +82,7 @@ fn main() {
             };
 
             
-            if sys_time.elapsed().unwrap().as_secs() >= 5 {
+            if sys_time.elapsed().unwrap().as_secs() >= 60 {
 
                 sys_time = SystemTime::now();
 
@@ -87,25 +97,34 @@ fn main() {
                 .join(",")
                 .to_string();
                 
-                let mut payload = "{\"agentKey\":\"23ddab267dff7cde05dc20a28e93c272\",\"plugins\":{\"custom\":{".to_string();
-
+                let mut payload = "{\"agentKey\":\"".to_string();
+                payload.push_str(&config.agent_key);
+                payload.push_str("\",\"plugins\":{\"website\":{");
                 payload.push_str(&x);
-                payload.push_str("}}");
+                payload.push_str("}}}");
+
 
                 metricmap = HashMap::new();
 
-                let res = client.post(uri)
+                let mut res = client.post(uri)
+                .header(XForwardedHost(config.account_url.clone()))
                 .form(&[
                     ("payload", &payload),
                     ("hash", &format!("{:x}", md5::compute(&payload)))
                 ])
                 .send();
 
-                match res {
-                    Ok(r) => {
-                        println!("submitted to serverdensity, status {:?}", r.status());
+                //println!("hash: {}, payload: {}", &format!("{:x}", md5::compute(&payload)), &payload);
+
+                match &mut res {
+                    &mut Ok(ref mut r) => {
+
+                        let mut content = String::new();
+                        r.read_to_string(&mut content).expect("failed to read");
+
+                        println!("submitted to serverdensity, status {:?}, \n{:?}\n\n", r, content);
                     },
-                    Err(e) => {
+                    &mut Err(ref mut e) => {
                         println!("failed to send to serverdensity, status {:?}", e.status());
                         println!("error: {:?}", e);
                     }
