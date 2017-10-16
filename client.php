@@ -15,8 +15,12 @@ function send($metric, $count) {
 
 while(true) {
 
-    send('foo', mt_rand(1, 500));
-    usleep(mt_rand(30000, 100000));
+    $i = 0;
+    while($i++ < 10000) {
+        send('a', 1);
+        send('b', 1);
+        send('c', 1);
+    }
     echo ".";
 }
 

@@ -4,6 +4,7 @@ extern crate url;
 extern crate md5;
 extern crate reqwest;
 #[macro_use] extern crate hyper;
+extern crate regex;
 
 use clap::{Arg, App};
 use std::net::UdpSocket;
@@ -14,7 +15,8 @@ use std::thread;
 use std::collections::HashMap;
 use std::time::{SystemTime, Duration};
 use std::io::Read;
-use hyper::header::Headers;
+use regex::Regex;
+use std::sync::mpsc::TryRecvError;
 
 header! { (XForwardedHost, "X-Forwarded-Host") => [String] }
 
@@ -28,7 +30,8 @@ struct Metric {
 struct Config {
     pub token: String,
     pub account_url: String,
-    pub agent_key: String
+    pub agent_key: String,
+    pub serverdensity_endpoint: String
 }
 
 fn main() {
@@ -52,15 +55,24 @@ fn main() {
             .long("agent-key")
             .required(true)
             .takes_value(true))
+        .arg(Arg::with_name("serverdensity-endpoint")
+            .default_value("https://api.serverdensity.io")
+            .help("Serverdensity API-Endpoint")
+            .long("serverdensity-endpoint")
+            .required(false)
+            .takes_value(true))
         .get_matches();
 
     let config = Config {
         token: matches.value_of("token").unwrap().to_string(),
         account_url: matches.value_of("account-url").unwrap().to_string(),
-        agent_key: matches.value_of("agent-key").unwrap().to_string()
+        agent_key: matches.value_of("agent-key").unwrap().to_string(),
+        serverdensity_endpoint: matches.value_of("serverdensity-endpoint").unwrap().to_string()
     };
 
     let (sender, receiver) = channel::<Metric>();
+
+    let regex = Regex::new(r"[^0-9a-zA-ZäöüÄÖÜß\-\(\)_]*").expect("failed to compile regex");
 
     thread::spawn(move|| {
 
@@ -70,19 +82,45 @@ fn main() {
 
         let client = reqwest::Client::new();
 
-        let uri = &format!("https://api.serverdensity.io/alerts/postbacks?token={}", &config.token);
+        let uri = &format!("{}/alerts/postbacks?token={}", &config.serverdensity_endpoint, &config.token);
 
         loop {
 
-            match receiver.recv_timeout(Duration::from_secs(1)) {
-                Ok(metric) => {
-                    *metricmap.entry(metric.name).or_insert(0) += metric.count;
-                },
-                Err(_) => { }
-            };
+            thread::sleep(Duration::from_millis(30));
+
+            loop {
+
+                let mut i = 0;
+
+                match receiver.try_recv() {
+                    Ok(metric) => {
+                        let metric_name = regex.replace_all(&metric.name, "").to_string();
+
+                        if metric_name.trim() == "" {
+                            println!("got empty metric name.");
+                            continue;
+                        }
+
+                        *metricmap.entry(metric_name).or_insert(0) += metric.count;
+
+                        i = i + 1;
+
+                        if i == 50_000 {
+                            println!("got a lot of messages, may more than the server can handel...");
+                        }
+                    },
+                    Err(TryRecvError::Empty) => {
+                        // buffer ist leer.
+                        break;
+                    },
+                    Err(TryRecvError::Disconnected) => {
+                        panic!("channel disconnected, should never happen.");
+                    }
+                };
+            }
 
             
-            if sys_time.elapsed().unwrap().as_secs() >= 60 {
+            if sys_time.elapsed().unwrap().as_secs() >= 10 {
 
                 sys_time = SystemTime::now();
 
@@ -144,7 +182,12 @@ fn main() {
                 continue;
             },
             Ok(m) => {
-                sender.send(m);
+                match sender.send(m) {
+                    Ok(_) => {},
+                    Err(_) => {
+                        println!("could not recv. metric");
+                    }
+                }
             }
         }
     }
@@ -153,10 +196,14 @@ fn main() {
 fn read(socket : &mut UdpSocket) -> Result<Metric, String>
 {
     let mut buf = [0; 300];
-    let (amt, src) = try!(socket.recv_from(&mut buf).or_else(|_|Err("foo".to_string())));
+    let (amt, _) = try!(socket.recv_from(&mut buf).or_else(|_|Err("Could recv from Socket.".to_string())));
+
+    if amt <= 4 {
+        return Err("UDP Package size is to small.".to_string());
+    }
 
     let count = BigEndian::read_i32(&buf[0..4]);
-    let name = String::from_utf8_lossy(&buf[4..amt]).to_string();
+    let name = String::from_utf8_lossy(&buf[4..amt]).to_string().replace("\"", "");
 
     Ok(Metric {
         count: count,
