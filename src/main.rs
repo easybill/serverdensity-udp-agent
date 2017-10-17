@@ -27,11 +27,14 @@ struct Metric {
     pub count: i32
 }
 
+#[derive(Clone)]
 struct Config {
     pub token: String,
     pub account_url: String,
     pub agent_key: String,
-    pub serverdensity_endpoint: String
+    pub serverdensity_endpoint: String,
+    pub debug: bool,
+    pub bind: String
 }
 
 fn main() {
@@ -61,25 +64,45 @@ fn main() {
             .long("serverdensity-endpoint")
             .required(false)
             .takes_value(true))
+        .arg(Arg::with_name("bind")
+            .default_value("127.0.0.1:1113")
+            .help("Bind Address.")
+            .long("bind")
+            .required(false)
+            .takes_value(true))
+        .arg(Arg::with_name("debug")
+            .short("v")
+            .help("verbose mode, just for debugging")
+            .long("debug")
+            .takes_value(false))
         .get_matches();
 
     let config = Config {
         token: matches.value_of("token").unwrap().to_string(),
         account_url: matches.value_of("account-url").unwrap().to_string(),
         agent_key: matches.value_of("agent-key").unwrap().to_string(),
-        serverdensity_endpoint: matches.value_of("serverdensity-endpoint").unwrap().to_string()
+        serverdensity_endpoint: matches.value_of("serverdensity-endpoint").unwrap().to_string(),
+        debug: matches.is_present("debug"),
+        bind: matches.value_of("bind").unwrap().to_string()
     };
+
+    println!("UDP Sender for Serverdendity");
+    println!("account-url: {}", &config.account_url);
+    println!("agent-key: {}", &config.agent_key);
+    println!("endpoint: {}", &config.serverdensity_endpoint);
+    println!("debug: {:?}", &config.debug);
+    println!("bind: {}", &config.bind);
+    println!("\nServer is starting...");
 
     let (sender, receiver) = channel::<Metric>();
 
     let regex = Regex::new(r"[^0-9a-zA-ZäöüÄÖÜß\-\(\)_]*").expect("failed to compile regex");
 
+    let thread_config = config.clone();
     thread::spawn(move|| {
-
+        let config = thread_config;
         let mut metricmap = HashMap::new();
-
         let mut sys_time = SystemTime::now();
-
         let client = reqwest::Client::new();
 
         let uri = &format!("{}/alerts/postbacks?token={}", &config.serverdensity_endpoint, &config.token);
@@ -117,10 +140,22 @@ fn main() {
                         panic!("channel disconnected, should never happen.");
                     }
                 };
+
+                if i != 0 && config.debug {
+                    println!("got {} messages.", i);
+                    println!("------------------\n{:#?}\n------------------", metricmap);
+                }
             }
 
+            let elapsed_time = match sys_time.elapsed() {
+                Ok(t) => t,
+                Err(_) => {
+                    println!("seems to have trouble with the clock, should never happen.");
+                    continue;
+                }
+            };
             
-            if sys_time.elapsed().unwrap().as_secs() >= 10 {
+            if elapsed_time.as_secs() >= 10 {
 
                 sys_time = SystemTime::now();
 
@@ -144,23 +179,46 @@ fn main() {
 
                 metricmap = HashMap::new();
 
-                let mut res = client.post(uri)
-                .header(XForwardedHost(config.account_url.clone()))
-                .form(&[
+                let send_data_to_backend_time = SystemTime::now();
+
+                let data = &[
                     ("payload", &payload),
                     ("hash", &format!("{:x}", md5::compute(&payload)))
-                ])
+                ];
+
+                if config.debug {
+                    println!("Data to send to Backend {:#?}", &data);
+                }
+
+                let mut res = client.post(uri)
+                .header(XForwardedHost(config.account_url.clone()))
+                .form(data)
                 .send();
 
-                //println!("hash: {}, payload: {}", &format!("{:x}", md5::compute(&payload)), &payload);
+                let send_data_to_backend_tooked_in_ms = match send_data_to_backend_time.elapsed() {
+                    Ok(duration) => (duration.as_secs() * 1000) + (duration.subsec_nanos() as u64 * 1000000),
+                    Err(_) => {
+                        println!("seems to have trouble with the clock, should never happen.");
+                        continue;
+                    }
+                };
+                
+                if config.debug {
+                    println!("println sending data to beackend tooked {}ms", &send_data_to_backend_tooked_in_ms);
+                }
 
                 match &mut res {
                     &mut Ok(ref mut r) => {
 
                         let mut content = String::new();
-                        r.read_to_string(&mut content).expect("failed to read");
-
-                        println!("submitted to serverdensity, status {:?}, \n{:?}\n\n", r, content);
+                        match r.read_to_string(&mut content) {
+                            Ok(content) => {
+                                println!("submitted to serverdensity, status {:?}, \n{:?}\n\n", r, content);
+                            }, 
+                            Err(_) => {
+                                println!("submitted to serverdentity, status: {:?}, but could not read response.", r);
+                            }
+                        }
                     },
                     &mut Err(ref mut e) => {
                         println!("failed to send to serverdensity, status {:?}", e.status());
@@ -172,7 +230,13 @@ fn main() {
         }
     });
 
-    let mut socket = UdpSocket::bind("127.0.0.1:1113").expect("could not listen on port 1113");
+    let mut socket = match UdpSocket::bind(&config.bind) {
+        Ok(s) => s,
+        Err(_) => {
+            println!("could not listen, may someone is already listen on this port or the address is invalid?");
+            return;
+        }
+    };
 
     loop {
         
