@@ -262,12 +262,18 @@ fn read(socket : &mut UdpSocket) -> Result<Metric, String>
     let mut buf = [0; 300];
     let (amt, _) = try!(socket.recv_from(&mut buf).or_else(|_|Err("Could recv from Socket.".to_string())));
 
-    if amt <= 4 {
+    if amt <= 6 {
         return Err("UDP Package size is to small.".to_string());
     }
 
-    let count = BigEndian::read_i32(&buf[0..4]);
-    let name = String::from_utf8_lossy(&buf[4..amt]).to_string().replace("\"", "");
+    let metric_type = BigEndian::read_u16(&buf[0..2]);
+
+    if metric_type != 42 {
+        return Err("unsupported metric type".to_string());
+    }
+
+    let count = BigEndian::read_i32(&buf[2..6]);
+    let name = String::from_utf8_lossy(&buf[6..amt]).to_string().replace("\"", "");
 
     Ok(Metric {
         count: count,
