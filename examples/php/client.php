@@ -15,11 +15,12 @@ function send($metric, $count) {
 while(true) {
 
     $i = 0;
-    while($i++ < 10000) {
+    while($i++ < 1000) {
         send('a', 1);
         send('b', 1);
         send('c', 1);
     }
     echo ".";
+    sleep(1);
 }
 
