@@ -5,6 +5,7 @@ extern crate md5;
 extern crate reqwest;
 #[macro_use] extern crate hyper;
 extern crate regex;
+extern crate openssl_probe;
 
 mod config;
 
@@ -32,6 +33,8 @@ struct Metric {
 
 fn main() {
 
+    ::openssl_probe::probe();
+
     let matches = App::new("Server Density UDP Monitor")
         .version("1.0")
         .author("Tim Glabisch. <serverdensity@tim.ainfach.de>")
@@ -39,7 +42,7 @@ fn main() {
         .arg(Arg::with_name("token")
             .help("Server Density API Token")
             .long("token")
-            .required(false)
+            .required(true)
             .takes_value(true))
         .arg(Arg::with_name("account-url")
             .help("Set this to your Server Density account url, e.g. example.serverdensity.io")
