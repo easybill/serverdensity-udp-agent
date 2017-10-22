@@ -55,3 +55,45 @@ impl AverageHandler {
     }
 
 }
+
+pub struct PeakHandler;
+
+impl PeakHandler {
+    pub fn new() -> PeakHandler {
+        PeakHandler {}
+    }
+
+    pub fn handle(&self, metric_name : &str, metric : &Metric, metricmap: &mut HashMap<String, i32>) {
+        let e : &mut i32 = metricmap.entry(metric_name.to_string()).or_insert(0);
+
+        if *e < metric.count {
+            *e = metric.count;
+        }
+    }
+
+    pub fn flush(&self, _: &mut HashMap<String, i32>) {
+
+    }
+
+}
+
+pub struct MinHandler;
+
+impl MinHandler {
+    pub fn new() -> MinHandler {
+        MinHandler {}
+    }
+
+    pub fn handle(&self, metric_name : &str, metric : &Metric, metricmap: &mut HashMap<String, i32>) {
+        let e : &mut i32 = metricmap.entry(metric_name.to_string()).or_insert(::std::i32::MAX);
+
+        if *e > metric.count {
+            *e = metric.count;
+        }
+    }
+
+    pub fn flush(&self, _: &mut HashMap<String, i32>) {
+
+    }
+
+}

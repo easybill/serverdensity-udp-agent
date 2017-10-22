@@ -12,6 +12,8 @@ pub struct UdpServer;
 pub enum MetricType {
     SUM,
     AVERAGE,
+    PEAK,
+    MIN
 }
 
 impl MetricType {
@@ -20,6 +22,8 @@ impl MetricType {
         match v {
             42 => Some(MetricType::SUM),
             43 => Some(MetricType::AVERAGE),
+            44 => Some(MetricType::PEAK),
+            45 => Some(MetricType::MIN),
             _ => None
         }
     }

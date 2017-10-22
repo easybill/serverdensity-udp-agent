@@ -10,7 +10,7 @@ use ::Metric;
 use ::md5;
 use reqwest;
 use udpserver::MetricType;
-use handler::{SumHandler, AverageHandler};
+use handler::{SumHandler, AverageHandler, PeakHandler, MinHandler};
 
 header! { (XForwardedHost, "X-Forwarded-Host") => [String] }
 
@@ -39,6 +39,8 @@ impl<'a> Aggregator<'a> {
 
         let handler_sum = SumHandler::new();
         let mut handler_avg = AverageHandler::new();
+        let handler_peak = PeakHandler::new();
+        let handler_min = MinHandler::new();
 
         loop {
 
@@ -67,6 +69,12 @@ impl<'a> Aggregator<'a> {
                             },
                             MetricType::AVERAGE => {
                                 handler_avg.handle(&metric_name, &metric, &mut metricmap);
+                            },
+                            MetricType::PEAK => {
+                                handler_peak.handle(&metric_name, &metric, &mut metricmap);
+                            },
+                            MetricType::MIN => {
+                                handler_min.handle(&metric_name, &metric, &mut metricmap);
                             }
                         };
 
@@ -98,6 +106,8 @@ impl<'a> Aggregator<'a> {
                 sys_time = SystemTime::now();
                 handler_sum.flush(&mut metricmap);
                 handler_avg.flush(&mut metricmap);
+                handler_peak.flush(&mut metricmap);
+                handler_min.flush(&mut metricmap);
                 self.push_to_serverdensity(&mut metricmap);
             }
 
