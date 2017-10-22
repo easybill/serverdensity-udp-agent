@@ -1,4 +1,3 @@
-
 use std::thread;
 use std::collections::HashMap;
 use std::time::{SystemTime, Duration};
@@ -10,6 +9,8 @@ use std::sync::mpsc::Receiver;
 use ::Metric;
 use ::md5;
 use reqwest;
+use udpserver::MetricType;
+use handler::{SumHandler, AverageHandler};
 
 header! { (XForwardedHost, "X-Forwarded-Host") => [String] }
 
@@ -36,6 +37,9 @@ impl<'a> Aggregator<'a> {
         let mut metricmap = HashMap::new();
         let mut sys_time = SystemTime::now();
 
+        let handler_sum = SumHandler::new();
+        let mut handler_avg = AverageHandler::new();
+
         loop {
 
             thread::sleep(Duration::from_millis(30));
@@ -57,7 +61,14 @@ impl<'a> Aggregator<'a> {
                             println!("Debug: got metric \"{}\" with count \"{}\"", metric_name, metric.count);
                         }
 
-                        *metricmap.entry(metric_name).or_insert(0) += metric.count;
+                        match metric.metric_type {
+                            MetricType::SUM => {
+                               handler_sum.handle(&metric_name, &metric, &mut metricmap);
+                            },
+                            MetricType::AVERAGE => {
+                                handler_avg.handle(&metric_name, &metric, &mut metricmap);
+                            }
+                        };
 
                         i = i + 1;
 
@@ -85,6 +96,8 @@ impl<'a> Aggregator<'a> {
             
             if elapsed_time.as_secs() >= 10 {
                 sys_time = SystemTime::now();
+                handler_sum.flush(&mut metricmap);
+                handler_avg.flush(&mut metricmap);
                 self.push_to_serverdensity(&mut metricmap);
             }
 

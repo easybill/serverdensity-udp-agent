@@ -10,6 +10,7 @@ extern crate openssl_probe;
 mod config;
 mod aggregator;
 mod udpserver;
+mod handler;
 
 use clap::{Arg, App};
 use std::sync::mpsc::channel;
@@ -17,12 +18,13 @@ use std::thread;
 use config::Config;
 use aggregator::Aggregator;
 use udpserver::UdpServer;
-
+use udpserver::MetricType;
 
 #[derive(Debug)]
 pub struct Metric {
     pub name: String,
-    pub count: i32
+    pub count: i32,
+    pub metric_type: MetricType
 }
 
 fn main() {
