@@ -1,0 +1,20 @@
+{
+  "name": "easybill/serverdensity_udp_metric_php_example",
+  "description": "example",
+  "license": "MIT",
+  "require": {
+    "php": ">=7.0",
+    "easybill/serverdensity_udp_metric_client": "dev-master"
+  },
+  "authors": [
+    {
+      "name": "timglabisch",
+      "email": "serverdensity-udp-agent@tim.ainfach.de"
+    }
+  ],
+  "autoload": {
+    "psr-4": {
+      "easybill\\Metrics\\ServerdensityUDPAgent": "clients/php/src/"
+    }
+  }
+}

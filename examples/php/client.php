@@ -1,29 +1,19 @@
 <?php
 
-const TYPE_SUM = 42;
-const TYPE_AVERAGE = 43;
-const TYPE_PEAK = 44;
-const TYPE_MIN = 45;
+use easybill\Metrics\ServerdensityUDPAgent\ServerdensityUDPAgent;
 
-function send($type, $metric, $count) {
-    $host = '127.0.0.1';
-    $port = '1113';
+require __DIR__ . '/../../clients/php/src/ServerdensityUDPAgent.php';
 
-    $msg = pack('nN', $type, $count).$metric;
+$client = new ServerdensityUDPAgent();
 
-    $socket = socket_create(AF_INET, SOCK_DGRAM, SOL_UDP);
-    socket_sendto($socket, $msg, strlen($msg), 0, $host, $port);
-    socket_close($socket);
-}
-
-while(true) {
+while (true) {
 
     $i = 0;
-    while($i++ < 1000) {
-        send(TYPE_SUM, 'a', 1);
-        send(TYPE_AVERAGE, 'b', rand(10, 20));
-        send(TYPE_PEAK, 'c', rand(10, 20));
-        send(TYPE_MIN, 'd', rand(10, 20));
+    while ($i++ < 1000) {
+        $client->sendSum('a', rand(10, 20)); // large number
+        $client->sendAverage('b', rand(10, 20)); // probably ~15
+        $client->sendPeak('c', rand(10, 20)); // probably ~20
+        $client->sendMin('d', rand(10, 20));  // // probably ~10
     }
     echo ".";
     sleep(1);
