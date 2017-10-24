@@ -1,6 +1,6 @@
 # Basics
 
-this project is not official supported by serverdensity.
+this project is not officially supported by server density.
 
 ## Arguments:
 
@@ -32,11 +32,15 @@ this project is not official supported by serverdensity.
 
 ## Installing
 
-go to the releases tab and download the latest binary.
+### linux64
+Go to the releases tab and download the latest binary.
+
+### OSX
+clone the repository and run `cargo build --release`
 
 ## Running the Agent
 
-severdensity_udpserver can read the serverdensity configurationfile.
+The Udp-Server can read the serverdensity agent config file.
 if the agent is already installed on your system you can simply run:
 
 ```
@@ -76,7 +80,7 @@ send('foo', 123);
 
 ```
 
-this will send a foo metric to serverdensity_udpserver.
-serverdensity_udpserver will aggregate these packages and send it to serverdensity.
+This will send a foo metric to the UDP-Server.
+The UDP-Server will aggregate these packages and send it to serverdensity.
 
-from performance perspective you could send thousands of messages per second.
+From performance perspective you could send thousands of messages per second.
