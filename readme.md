@@ -61,6 +61,28 @@ severdensity_udpserver \
 
 ## Sending Metrics
 
+The UDP-Server will aggregate these packages and send it to serverdensity.
+
+From performance perspective you could send thousands of messages per second.
+
+
+### php
+
+we provide a small php client
+
+```
+composer require easybill/serverdensity_udp_metric_client
+```
+
+```php
+<?php
+
+$client = new ServerdensityUDPAgent();
+$client->sendSum('[METRIC_GROUP].[METRIC]', 1);
+```
+
+### just udp
+
 example php client:
 
 ```php
@@ -79,8 +101,3 @@ function send($metric, $count) {
 send('foo', 123);
 
 ```
-
-This will send a foo metric to the UDP-Server.
-The UDP-Server will aggregate these packages and send it to serverdensity.
-
-From performance perspective you could send thousands of messages per second.
