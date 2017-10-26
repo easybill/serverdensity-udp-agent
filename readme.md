@@ -61,6 +61,28 @@ severdensity_udpserver \
 
 ## Sending Metrics
 
+The UDP-Server will aggregate these packages and send it to serverdensity.
+
+From performance perspective you could send thousands of messages per second.
+
+
+### php
+
+we provide a small php client
+
+```
+composer require easybill/serverdensity_udp_metric_client
+```
+
+```php
+<?php
+
+$client = new ServerdensityUDPAgent();
+$client->sendSum('[METRIC_GROUP].[METRIC]', 1);
+```
+
+### just udp
+
 example php client:
 
 ```php
@@ -80,7 +102,40 @@ send('foo', 123);
 
 ```
 
-This will send a foo metric to the UDP-Server.
-The UDP-Server will aggregate these packages and send it to serverdensity.
+# installing + Supervisor
 
-From performance perspective you could send thousands of messages per second.
+```bash
+wget https://github.com/easybill/serverdensity-udp-agent/releases/download/0.1/serverdensity_udpserver.zip
+unzip serverdensity_udpserver.zip
+rm serverdensity_udpserver.zip
+mv serverdensity_udpserver /usr/local/bin/
+```
+
+now you can test if the server starts:
+
+```
+serverdensity_udpserver --token={SERVERDENSITY_TOKEN} --config=/etc/sd-agent/config.cfg
+```
+
+
+open `/etc/supervisor/conf.d/serverdensity_udpserver.conf` and add:
+
+```
+[program:serverdensity_udpserver]
+command=serverdensity_udpserver --token={SERVERDENSITY_TOKEN} --config=/etc/sd-agent/config.cfg
+user=sd-agent
+process_name=%(program_name)s
+numprocs=1
+directory=/tmp
+autostart=true
+autorestart=true
+startsecs=0
+startretries=10
+stdout_logfile=/var/log/supervisor/%(program_name)s.log
+stderr_logfile=/var/log/supervisor/%(program_name)s_error.log
+stopsignal=QUIT
+```
+
+check the update of the new process
+
+`supervisorctl status | grep serverdensity_udpserver`
