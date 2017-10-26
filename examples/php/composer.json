@@ -11,10 +11,5 @@
       "name": "timglabisch",
       "email": "serverdensity-udp-agent@tim.ainfach.de"
     }
-  ],
-  "autoload": {
-    "psr-4": {
-      "easybill\\Metrics\\ServerdensityUDPAgent": "clients/php/src/"
-    }
-  }
+  ]
 }

@@ -1,8 +1,13 @@
 <?php
 
-use easybill\Metrics\ServerdensityUDPAgent\ServerdensityUDPAgent;
+if (file_exists(__DIR__ . '/vendor/autoload.php')) {
+    require __DIR__ . '/vendor/autoload.php';
+} else {
+    require __DIR__ . '/../../clients/php/src/ServerdensityUDPAgent.php';
+}
 
-require __DIR__ . '/../../clients/php/src/ServerdensityUDPAgent.php';
+
+use easybill\Metrics\ServerdensityUDPAgent\ServerdensityUDPAgent;
 
 $client = new ServerdensityUDPAgent();
 
