@@ -32,7 +32,7 @@ impl<'a> Aggregator<'a> {
 
     pub fn run(&self, receiver: Receiver<Metric>) {
 
-        let regex = Regex::new(r"[^0-9a-zA-ZäöüÄÖÜß\-\(\)_]*").expect("failed to compile regex");
+        let regex = Regex::new(r"[^0-9a-zA-ZäöüÄÖÜß\-\(\)\._]*").expect("failed to compile regex");
 
         let mut metricmap = HashMap::new();
         let mut sys_time = SystemTime::now();
