@@ -12,7 +12,7 @@ final class ServerdensityUDPAgent
     /** @var int */
     private $port;
 
-    public function __construct($port = 1113)
+    public function __construct(int $port = 1113)
     {
         $this->port = $port;
     }
