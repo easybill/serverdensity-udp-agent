@@ -138,4 +138,18 @@ stopsignal=QUIT
 
 check the update of the new process
 
-`supervisorctl status | grep serverdensity_udpserver`
+`supervisorctl status serverdensity_udpserver`
+
+
+## updating the udp server
+
+```
+wget https://github.com/easybill/serverdensity-udp-agent/releases/download/0.1/serverdensity_udpserver.zip
+unzip serverdensity_udpserver.zip
+supervisorctl stop serverdensity_udpserver
+rm /usr/local/bin/serverdensity_udpserver
+mv serverdensity_udpserver /usr/local/bin/
+supervisorctl start serverdensity_udpserver
+supervisorctl status serverdensity_udpserver
+rm serverdensity_udpserver.zip
+```
