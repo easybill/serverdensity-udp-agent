@@ -2,6 +2,7 @@
 name = "serverdensity_udpserver"
 version = "0.1.0"
 authors = ["timglabisch <tim@ainfach.de>"]
+edition = "2021"
 
 [dependencies]
 byteorder = "1.4.*"
