@@ -692,6 +692,7 @@ name = "serverdensity_udpserver"
 version = "0.1.0"
 dependencies = [
  "byteorder",
+ "bytes",
  "clap",
  "md5",
  "openssl-probe",
