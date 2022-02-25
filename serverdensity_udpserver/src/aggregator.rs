@@ -9,7 +9,7 @@ use std::sync::mpsc::Receiver;
 use crate::Metric;
 use ::md5;
 use reqwest;
-use serverdensity_udp_adgent::MetricType;
+use serverdensity_udpserver_lib::MetricType;
 use crate::handler::{SumHandler, AverageHandler, PeakHandler, MinHandler};
 
 pub struct Aggregator<'a> {

@@ -1,23 +1,6 @@
-[package]
-name = "serverdensity_udpserver"
-version = "0.1.0"
-authors = ["timglabisch <tim@ainfach.de>"]
-edition = "2021"
+[workspace]
 
-[dependencies]
-byteorder = "1.4.*"
-reqwest = { version = "0.11.*", features = ["blocking"] }
-clap = "3.0.*"
-url = "2.2.*"
-md5 = "0.7.*"
-regex = "1.5.*"
-openssl-probe = "0.1.*"
-bytes = "1.1.*"
-
-[[bin]]
-name = "serverdensity-udp-adgent"
-path = "src/main.rs"
-
-[lib]
-name = "serverdensity_udp_adgent"
-path = "src/lib/lib.rs"
+members = [
+    "serverdensity_udpserver",
+    "serverdensity_udpserver_lib",
+]

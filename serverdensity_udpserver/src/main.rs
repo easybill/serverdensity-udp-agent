@@ -14,7 +14,7 @@ mod handler;
 use clap::{Arg, App};
 use std::sync::mpsc::channel;
 use std::thread;
-use serverdensity_udp_adgent::MetricType;
+use serverdensity_udpserver_lib::MetricType;
 use crate::config::Config;
 use crate::aggregator::Aggregator;
 use crate::udpserver::UdpServer;

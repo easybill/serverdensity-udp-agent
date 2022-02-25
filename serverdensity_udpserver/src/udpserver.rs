@@ -4,7 +4,7 @@ use byteorder::ByteOrder;
 use crate::config::Config;
 use crate::Metric;
 use std::sync::mpsc::Sender;
-use serverdensity_udp_adgent::MetricType;
+use serverdensity_udpserver_lib::MetricType;
 
 
 pub struct UdpServer;
