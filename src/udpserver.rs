@@ -4,30 +4,10 @@ use byteorder::ByteOrder;
 use crate::config::Config;
 use crate::Metric;
 use std::sync::mpsc::Sender;
+use serverdensity_udp_adgent::MetricType;
 
 
 pub struct UdpServer;
-
-#[derive(Debug, PartialEq)]
-pub enum MetricType {
-    SUM,
-    AVERAGE,
-    PEAK,
-    MIN
-}
-
-impl MetricType {
-    pub fn from_u16(v : u16) -> Option<MetricType>
-    {
-        match v {
-            42 => Some(MetricType::SUM),
-            43 => Some(MetricType::AVERAGE),
-            44 => Some(MetricType::PEAK),
-            45 => Some(MetricType::MIN),
-            _ => None
-        }
-    }
-}
 
 impl UdpServer {
     pub fn new() -> Self {
