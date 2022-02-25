@@ -12,11 +12,9 @@ use reqwest;
 use udpserver::MetricType;
 use handler::{SumHandler, AverageHandler, PeakHandler, MinHandler};
 
-header! { (XForwardedHost, "X-Forwarded-Host") => [String] }
-
 pub struct Aggregator<'a> {
     config: &'a Config,
-    http_client: reqwest::Client,
+    http_client: reqwest::blocking::Client,
     api_postback_uri: String 
 }
 
@@ -25,7 +23,7 @@ impl<'a> Aggregator<'a> {
     pub fn new(config: &'a Config) -> Aggregator<'a> {
         Aggregator {
             config,
-            http_client: reqwest::Client::new(),
+            http_client: reqwest::blocking::Client::new(),
             api_postback_uri: format!("{}/alerts/postbacks?token={}", &config.serverdensity_endpoint, &config.token)
         }
     }
@@ -189,8 +187,9 @@ impl<'a> Aggregator<'a> {
         }
 
         let mut res = self.http_client.post(&self.api_postback_uri)
-        .header(XForwardedHost(self.config.account_url.clone()))
+        .header("X-Forwarded-Host", self.config.account_url.clone())
         .form(data)
+        .timeout(Duration::from_secs(30))
         .send();
 
         let send_data_to_backend_tooked_in_ms = match send_data_to_backend_time.elapsed() {

@@ -66,7 +66,7 @@ impl UdpServer {
     fn read(&self, socket : &mut UdpSocket) -> Result<Metric, String>
     {
         let mut buf = [0; 300];
-        let (amt, _) = try!(socket.recv_from(&mut buf).or_else(|_|Err("Could recv from Socket.".to_string())));
+        let (amt, _) = socket.recv_from(&mut buf).or_else(|_|Err("Could recv from Socket.".to_string()))?;
 
         if amt <= 6 {
             return Err("UDP Package size is to small.".to_string());
