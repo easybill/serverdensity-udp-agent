@@ -1,4 +1,4 @@
-use ::Metric;
+use crate::Metric;
 use std::collections::HashMap;
 
 pub struct SumHandler;

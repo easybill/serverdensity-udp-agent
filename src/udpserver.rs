@@ -1,8 +1,8 @@
 use std::net::UdpSocket;
 use byteorder::{BigEndian};
 use byteorder::ByteOrder;
-use config::Config;
-use ::Metric;
+use crate::config::Config;
+use crate::Metric;
 use std::sync::mpsc::Sender;
 
 

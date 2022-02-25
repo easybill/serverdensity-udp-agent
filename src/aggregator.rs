@@ -4,13 +4,13 @@ use std::time::{SystemTime, Duration};
 use std::io::Read;
 use regex::Regex;
 use std::sync::mpsc::TryRecvError;
-use config::Config;
+use crate::config::Config;
 use std::sync::mpsc::Receiver;
-use ::Metric;
+use crate::Metric;
 use ::md5;
 use reqwest;
-use udpserver::MetricType;
-use handler::{SumHandler, AverageHandler, PeakHandler, MinHandler};
+use crate::udpserver::MetricType;
+use crate::handler::{SumHandler, AverageHandler, PeakHandler, MinHandler};
 
 pub struct Aggregator<'a> {
     config: &'a Config,
@@ -227,7 +227,7 @@ impl<'a> Aggregator<'a> {
     mod tests {
 
         use ::std::collections::HashMap;
-        use ::aggregator::Aggregator;
+        use crate::aggregator::Aggregator;
 
         #[test]
         fn it_works() {
