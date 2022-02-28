@@ -144,12 +144,12 @@ check the update of the new process
 ## updating the udp server
 
 ```
-wget https://github.com/easybill/serverdensity-udp-agent/releases/download/0.1/serverdensity_udpserver.zip
-unzip serverdensity_udpserver.zip
+wget https://github.com/easybill/serverdensity-udp-agent/releases/download/0.2/serverdensity_udpserver
+chmod +x serverdensity_udpserver
 supervisorctl stop serverdensity_udpserver
 rm /usr/local/bin/serverdensity_udpserver
 mv serverdensity_udpserver /usr/local/bin/
 supervisorctl start serverdensity_udpserver
 supervisorctl status serverdensity_udpserver
-rm serverdensity_udpserver.zip
+rm serverdensity_udpserver
 ```
