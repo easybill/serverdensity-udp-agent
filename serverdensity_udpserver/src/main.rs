@@ -4,6 +4,7 @@ extern crate url;
 extern crate md5;
 extern crate reqwest;
 extern crate regex;
+extern crate openssl_probe;
 
 mod config;
 mod aggregator;
@@ -26,6 +27,8 @@ pub struct Metric {
 }
 
 fn main() {
+
+    ::openssl_probe::init_ssl_cert_env_vars();
 
     let matches = App::new("Server Density UDP Monitor")
         .version("1.0")
