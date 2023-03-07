@@ -30,7 +30,7 @@ fn main() {
     let matches = App::new("Server Density UDP Monitor")
         .version("1.0")
         .author("Tim Glabisch. <serverdensity@tim.ainfach.de>")
-        .about("UDP Sender for Serverdendity")
+        .about("UDP Sender for Serverdensity")
         .arg(Arg::new("token")
             .help("Server Density API Token")
             .long("token")
