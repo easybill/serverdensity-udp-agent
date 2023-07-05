@@ -2,7 +2,7 @@ use std::fs::File;
 use std::io::BufReader;
 use std::io::prelude::*;
 
-#[derive(Clone)]
+#[derive(Clone, Debug)]
 pub struct Config {
     pub token: String,
     pub account_url: String,
