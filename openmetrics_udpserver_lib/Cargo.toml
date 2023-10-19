@@ -1,8 +1,9 @@
 [package]
-name = "serverdensity_udpserver_lib"
+name = "openmetrics_udpserver_lib"
 version = "0.1.0"
 authors = ["timglabisch <tim@ainfach.de>"]
 edition = "2021"
 
 [dependencies]
-bytes = "1.*"
+bytes = "1.5.*"
+thiserror = "1.0.*"

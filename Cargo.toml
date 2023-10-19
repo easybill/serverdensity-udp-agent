@@ -1,6 +1,6 @@
 [workspace]
-
+resolver = "2"
 members = [
-    "serverdensity_udpserver",
-    "serverdensity_udpserver_lib",
+    "openmetrics_udpserver",
+    "openmetrics_udpserver_lib",
 ]

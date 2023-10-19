@@ -1,74 +1,43 @@
-# Basics
+# Prometheus UDP Monitor
 
 this project is not officially supported by server density.
 
 ## Arguments:
 
 ```
-        --help
-            Help :)
-
-        --debug:
-            Debug :)
-
-        --account-url <account-url>
-            Set this to your Server Density account url, e.g. example.serverdensity.io
-
-        --agent-key <agent-key>
-            This is the agent key used to identify the device when payloads are processed. You can find this in the
-            top left corner when you view a device page in your UI
-
-        --bind <bind>                                        Bind Address. [default: 127.0.0.1:1113]
-
-        --serverdensity-endpoint <serverdensity-endpoint>
-            Serverdensity API-Endpoint [default: https://api.serverdensity.io]
-
-        --token <token>                                      Server Density API Token
-
-         -c, --config <config>
-            path to the serverdensity config file, may /etc/sd-agent/config.cfg?
+      --udp-bind <udp-bind>    UDP Server Bind Address. [default: 127.0.0.1:1113]
+      --http-bind <http-bind>  HTTP Server Bind Address. [default: 127.0.0.1:1114]
+  -v, --debug                  verbose mode, just for debugging
+  -h, --help                   Print help
+  -V, --version                Print version
 ```
-
 
 ## Installing
 
-### linux64
-Go to the releases tab and download the latest binary.
+This project is build on each release for Linux & Mac x86, aarch64. You can download these pre-build binaries from
+the [releases tab](https://github.com/easybill/openmetric-udp-agent/releases).
 
-### OSX
-clone the repository and run `cargo build --release`
+### Other Platforms
 
-## Running the Agent
+For other platforms you need to compile this lib yourself:
 
-The Udp-Server can read the serverdensity agent config file.
-if the agent is already installed on your system you can simply run:
-
-```
-severdensity_udpserver
-    --token=some_token \
-    --config=./examples/serverdensity_config_file.cfg
-
-```
-
-you can also set the agent-key and the account-url.
-
-```
-severdensity_udpserver \
-    --token=some_token \
-    --agent-key=some_key \
-    --account-url=[ACCOUNT].serverdensity.io
-```
+1. [Install Rust and Cargo](https://doc.rust-lang.org/cargo/getting-started/installation.html)
+2. Clone this repository
+3. Run `cargo b --release --bin=openmetrics_udpserver`
+4. The executable is located in `target/release/openmetrics_udpserver`
 
 ## Sending Metrics
 
-The UDP-Server will aggregate these packages and send it to serverdensity.
+The UDP-Server will collect sent metrics and make them available through a http endpoint using the openmetrics-text
+encoding. Sent values for the metric types Min, Average & Peak are just single values (if a value is received twice
+before collection, the old value gets overridden). The Sum metric type will sum up all received values until a
+collection happens - then the counter is reset to 0.
 
 From performance perspective you could send thousands of messages per second.
 
+### PHP
 
-### php
-
-we provide a small php client
+We provide a small php client
 
 ```
 composer require easybill/serverdensity_udp_metric_client
@@ -81,47 +50,45 @@ $client = new ServerdensityUDPAgent();
 $client->sendSum('[METRIC_GROUP].[METRIC]', 1);
 ```
 
-### just udp
+### Data Format
 
-example php client:
+The data format that must be used to send data to the server must be as follows:
 
-```php
+1. **u16**: representation of the metric type (see table below)
+2. **i32**: the data count
+3. the utf-8 encoded name of the metric
 
-function send($metric, $count) {
-    $host = '127.0.0.1';
-    $port = '1113';
+All numbers must be encoded using big endian byte order.
 
-    $msg = pack('nN', 42, $count).$metric;
+#### Metric Types:
 
-    $socket = socket_create(AF_INET, SOCK_DGRAM, SOL_UDP);
-    socket_sendto($socket, $msg, strlen($msg), 0, $host, $port);
-    socket_close($socket);
-}
+| Type    | ID |
+|---------|----|
+| Sum     | 42 |
+| Average | 43 |
+| Peak    | 44 |
+| Min     | 45 |
 
-send('foo', 123);
-
-```
-
-# installing + Supervisor
+# Installing + Supervisor
 
 ```bash
-wget https://github.com/easybill/serverdensity-udp-agent/releases/download/0.2/serverdensity_udpserver
-chmod +x serverdensity_udpserver
-mv serverdensity_udpserver /usr/local/bin/
+# replace the download link for the required platform
+wget https://github.com/easybill/openmetrics-udp-agent/releases/latest/download/openmetrics_udpserver_linux_x86_64
+chmod +x sopenmetrics_udpserver
+mv openmetrics_udpserver /usr/local/bin/
 ```
 
 now you can test if the server starts:
 
-```
-serverdensity_udpserver --token={SERVERDENSITY_TOKEN} --config=/etc/sd-agent/config.cfg
+```bash
+./openmetrics_udpserver
 ```
 
-
-open `/etc/supervisor/conf.d/serverdensity_udpserver.conf` and add:
+open `/etc/supervisor/conf.d/openmetrics_udpserver.conf` and add:
 
 ```
-[program:serverdensity_udpserver]
-command=serverdensity_udpserver --token={SERVERDENSITY_TOKEN} --config=/etc/sd-agent/config.cfg
+[program:openmetrics_udpserver]
+command=openmetrics_udpserver
 user=sd-agent
 process_name=%(program_name)s
 numprocs=1
@@ -135,19 +102,18 @@ stderr_logfile=/var/log/supervisor/%(program_name)s_error.log
 stopsignal=QUIT
 ```
 
-check the update of the new process
+Check the update of the new process
 
-`supervisorctl status serverdensity_udpserver`
+`supervisorctl status openmetrics_udpserver`
 
+## Updating the udp server
 
-## updating the udp server
-
-```
-wget https://github.com/easybill/serverdensity-udp-agent/releases/download/0.2/serverdensity_udpserver
-chmod +x serverdensity_udpserver
-supervisorctl stop serverdensity_udpserver
-rm /usr/local/bin/serverdensity_udpserver
-mv serverdensity_udpserver /usr/local/bin/
-supervisorctl start serverdensity_udpserver
-supervisorctl status serverdensity_udpserver
+```bash
+wget https://github.com/easybill/openmetrics-udp-agent/releases/latest/download/openmetrics_udpserver_linux_x86_64
+chmod +x openmetrics_udpserver
+supervisorctl stop openmetrics_udpserver
+rm /usr/local/bin/openmetrics_udpserver
+mv openmetrics_udpserver /usr/local/bin/
+supervisorctl start openmetrics_udpserver
+supervisorctl status openmetrics_udpserver
 ```
