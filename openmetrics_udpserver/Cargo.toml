@@ -9,8 +9,8 @@ anyhow = "*"
 clap = "4.4.*"
 bytes = "1.5.*"
 regex = "1.10.*"
-actix-web = "4.4.*"
 byteorder = "1.5.*"
 prometheus-client = "0.21.*"
 tokio = { version = "1.33.*", features = ["macros", "rt-multi-thread"] }
+actix-web = { version = "4.4.*", features = ["macros"], default-features = false }
 openmetrics_udpserver_lib = { path = "../openmetrics_udpserver_lib" }
