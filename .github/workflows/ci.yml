@@ -50,7 +50,7 @@ jobs:
           mkdir -p artifact
           mv target/${{ matrix.platform.target }}/release/openmetrics_udpserver artifact/openmetrics_udpserver_${{ matrix.platform.osn }}_${{ matrix.platform.arch }}
 
-      - name: Prepare output artifact for next step
+      - name: Upload output artifact for next step
         uses: actions/upload-artifact@v3
         with:
           name: openmetrics_udpserver_${{ matrix.platform.osn }}_${{ matrix.platform.arch }}
