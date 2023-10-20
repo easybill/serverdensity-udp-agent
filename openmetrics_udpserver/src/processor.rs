@@ -35,12 +35,12 @@ impl Processor {
     }
 
     pub fn run(&mut self, receiver: Receiver<InboundMetric>) -> anyhow::Result<(), anyhow::Error> {
-        let regex_allowed_chars = Regex::new(r"[^0-9a-zA-ZäöüÄÖÜß\-()._]*")?;
+        let regex_allowed_chars = Regex::new(r"^[^a-zA-Z_:]|[^a-zA-Z0-9_:]")?;
         loop {
             match receiver.recv() {
                 Ok(inbound_metric) => {
                     let metric_name = regex_allowed_chars
-                        .replace_all(&inbound_metric.name, "")
+                        .replace_all(&inbound_metric.name.replace('.', "_"), "")
                         .trim()
                         .to_string();
                     if metric_name.is_empty() {
