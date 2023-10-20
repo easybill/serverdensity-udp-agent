@@ -3,12 +3,12 @@ use crate::metrics::resetting_counter::ResettingCounterMetric;
 use crate::metrics::resetting_value_metric::ResettingSingleValMetric;
 use crate::metrics::ModifyMetric;
 use anyhow::anyhow;
+use crossbeam_channel::Receiver;
 use openmetrics_udpserver_lib::MetricType;
 use prometheus_client::registry::{Metric, Registry};
 use regex::Regex;
 use std::collections::HashMap;
 use std::rc::Rc;
-use std::sync::mpsc::Receiver;
 use std::sync::Arc;
 use tokio::sync::RwLock;
 

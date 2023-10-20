@@ -10,7 +10,12 @@ clap = "4.4.*"
 bytes = "1.5.*"
 regex = "1.10.*"
 byteorder = "1.5.*"
+crossbeam-channel = "0.5.*"
 prometheus-client = "0.21.*"
 tokio = { version = "1.33.*", features = ["macros", "rt-multi-thread"] }
 actix-web = { version = "4.4.*", features = ["macros"], default-features = false }
 openmetrics_udpserver_lib = { path = "../openmetrics_udpserver_lib" }
+
+# servedensity specific deps
+md5 = "0.7.*"
+reqwest = { version = "0.11.*", default-features = false, features = ["rustls-tls", "rustls-tls-native-roots", "blocking"] }

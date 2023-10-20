@@ -2,15 +2,17 @@ mod config;
 mod http_server;
 mod metrics;
 mod processor;
+mod serverdensity;
 mod udp_server;
 
 use crate::config::Config;
 use crate::processor::{InboundMetric, Processor};
+use crate::serverdensity::aggregator::{ServerDensityAggregator, ServerDensityConfig};
 use crate::udp_server::UdpServer;
 use anyhow::{anyhow, Context};
 use clap::{Arg, ArgAction, Command};
+use crossbeam_channel::unbounded;
 use prometheus_client::registry::Registry;
-use std::sync::mpsc::channel;
 use std::sync::Arc;
 use tokio::sync::RwLock;
 
@@ -40,6 +42,29 @@ async fn main() -> anyhow::Result<(), anyhow::Error> {
                 .long("debug")
                 .action(ArgAction::SetTrue),
         )
+        // ---- ServerDensity Args
+        .arg(Arg::new("token")
+            .help("Server Density API Token")
+            .long("token")
+            .required(true))
+        .arg(Arg::new("account-url")
+            .help("Set this to your Server Density account url, e.g. example.serverdensity.io")
+            .long("account-url")
+            .required(false))
+        .arg(Arg::new("agent-key")
+            .help("This is the agent key used to identify the device when payloads are processed. You can find this in the top left corner when you view a device page in your UI")
+            .long("agent-key")
+            .required(false))
+        .arg(Arg::new("serverdensity-endpoint")
+            .default_value("https://api.serverdensity.io")
+            .help("Serverdensity API-Endpoint")
+            .long("serverdensity-endpoint")
+            .required(false))
+        .arg(Arg::new("config")
+            .short('c')
+            .help("path to the serverdensity config file, may /etc/sd-agent/config.cfg?")
+            .long("config"))
+        // ---- ServerDensity Args
         .get_matches();
 
     let config = Config {
@@ -54,20 +79,21 @@ async fn main() -> anyhow::Result<(), anyhow::Error> {
             .to_string(),
     };
 
-    println!("UDB Monitor for Prometheus");
+    println!("UDP Monitor for OpenMetrics");
     println!("debug: {:?}", &config.debug);
     println!("udp host: {}", &config.udp_bind);
     println!("http host: {}", &config.http_bind);
 
     let metric_registry = Arc::new(RwLock::new(Registry::default()));
-    let (sender, receiver) = channel::<InboundMetric>();
+    let (sender, receiver) = unbounded::<InboundMetric>();
 
     let processor_config = config.clone();
+    let processor_receiver = receiver.clone();
     let processor_registry = metric_registry.clone();
     tokio::spawn(async move {
         let mut processor = Processor::new(processor_config, processor_registry);
         processor
-            .run(receiver)
+            .run(processor_receiver)
             .expect("Issue running metric processor");
     });
 
@@ -78,6 +104,13 @@ async fn main() -> anyhow::Result<(), anyhow::Error> {
             .run()
             .context("Error running UDP server loop")
             .unwrap();
+    });
+
+    // server density aggregator
+    tokio::spawn(async move {
+        let server_density_config = ServerDensityConfig::from_args(matches);
+        let server_density_aggregator = ServerDensityAggregator::new(server_density_config);
+        server_density_aggregator.run(receiver);
     });
 
     http_server::bind(config, metric_registry).await?;

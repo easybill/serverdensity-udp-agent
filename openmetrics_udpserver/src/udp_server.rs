@@ -2,9 +2,9 @@ use crate::config::Config;
 use crate::processor::InboundMetric;
 use byteorder::BigEndian;
 use byteorder::ByteOrder;
+use crossbeam_channel::Sender;
 use openmetrics_udpserver_lib::MetricType;
 use std::net::UdpSocket;
-use std::sync::mpsc::Sender;
 
 pub struct UdpServer {
     config: Config,
