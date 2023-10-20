@@ -51,16 +51,14 @@ impl Processor {
                     if self.config.debug {
                         println!(
                             "got metric [type={:?}, name={}, count={}]",
-                            &inbound_metric.metric_type,
-                            &inbound_metric.name,
-                            &inbound_metric.count
+                            &inbound_metric.metric_type, &metric_name, &inbound_metric.count
                         );
                     }
 
                     match inbound_metric.metric_type {
                         MetricType::Min | MetricType::Average | MetricType::Peak => {
                             let metric = self
-                                .get_or_register_metric(&inbound_metric.name, || {
+                                .get_or_register_metric(&metric_name, || {
                                     ResettingSingleValMetric::default()
                                 })
                                 .unwrap();
@@ -68,7 +66,7 @@ impl Processor {
                         }
                         MetricType::Sum => {
                             let metric = self
-                                .get_or_register_metric(&inbound_metric.name, || {
+                                .get_or_register_metric(&metric_name, || {
                                     ResettingCounterMetric::default()
                                 })
                                 .unwrap();
