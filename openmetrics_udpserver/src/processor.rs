@@ -95,7 +95,11 @@ impl Processor {
                 return match self.metric_registry.try_write() {
                     Ok(mut registry) => {
                         let metric = metric_type_factory();
-                        (*registry).register(metric_name, "", metric.clone());
+                        (*registry).register(
+                            metric_name,
+                            format!("The {} metric", metric_name),
+                            metric.clone(),
+                        );
 
                         let rc_metric = Rc::new(metric);
                         self.metrics.insert(metric_name.clone(), rc_metric.clone());
