@@ -10,10 +10,11 @@ clap = "4.4.*"
 bytes = "1.5.*"
 regex = "1.10.*"
 byteorder = "1.5.*"
-crossbeam-channel = "0.5.*"
+async-channel = "2.0.*"
 prometheus-client = "0.21.*"
-tokio = { version = "1.33.*", features = ["macros", "rt-multi-thread"] }
-actix-web = { version = "4.4.*", features = ["macros"], default-features = false }
+hyper = { version = "0.14.*", features = ["http2", "server"] }
+tokio = { version = "1.33.*", features = ["macros", "rt-multi-thread", "signal"] }
+axum = { version = "0.6.*", features = ["macros", "http2", "tokio"], default-features = false }
 openmetrics_udpserver_lib = { path = "../openmetrics_udpserver_lib" }
 
 # servedensity specific deps

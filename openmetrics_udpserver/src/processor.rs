@@ -3,13 +3,13 @@ use crate::metrics::resetting_counter::ResettingCounterMetric;
 use crate::metrics::resetting_value_metric::ResettingSingleValMetric;
 use crate::metrics::ModifyMetric;
 use anyhow::anyhow;
-use crossbeam_channel::Receiver;
+use async_channel::Receiver;
 use openmetrics_udpserver_lib::MetricType;
 use prometheus_client::registry::{Metric, Registry};
 use regex::Regex;
 use std::collections::HashMap;
-use std::rc::Rc;
 use std::sync::Arc;
+use std::time::Duration;
 use tokio::sync::RwLock;
 
 #[derive(Debug, Clone)]
@@ -21,7 +21,7 @@ pub struct InboundMetric {
 
 pub struct Processor {
     config: Config,
-    metrics: HashMap<String, Rc<dyn ModifyMetric>>,
+    metrics: HashMap<String, Arc<dyn ModifyMetric + Send + Sync>>,
     metric_registry: Arc<RwLock<Registry>>,
 }
 
@@ -34,10 +34,11 @@ impl Processor {
         }
     }
 
-    pub fn run(&mut self, receiver: Receiver<InboundMetric>) -> anyhow::Result<(), anyhow::Error> {
-        let regex_allowed_chars = Regex::new(r"^[^a-zA-Z_:]|[^a-zA-Z0-9_:]")?;
+    pub async fn run(&mut self, receiver: Receiver<InboundMetric>) {
+        let regex_allowed_chars = Regex::new(r"^[^a-zA-Z_:]|[^a-zA-Z0-9_:]")
+            .expect("Unable to compile metrics naming regex, should not happen");
         loop {
-            match receiver.recv() {
+            match receiver.recv().await {
                 Ok(inbound_metric) => {
                     let metric_name = regex_allowed_chars
                         .replace_all(&inbound_metric.name.replace('.', "_"), "")
@@ -57,24 +58,38 @@ impl Processor {
 
                     match inbound_metric.metric_type {
                         MetricType::Min | MetricType::Average | MetricType::Peak => {
-                            let metric = self
+                            let metric_get_result = self
                                 .get_or_register_metric(&metric_name, || {
                                     ResettingSingleValMetric::default()
-                                })
-                                .unwrap();
-                            metric.observe(inbound_metric.count);
+                                });
+                            Self::observe_metric(metric_get_result, inbound_metric).await;
                         }
                         MetricType::Sum => {
-                            let metric = self
+                            let metric_get_result = self
                                 .get_or_register_metric(&metric_name, || {
                                     ResettingCounterMetric::default()
-                                })
-                                .unwrap();
-                            metric.observe(inbound_metric.count);
+                                });
+                            Self::observe_metric(metric_get_result, inbound_metric).await;
                         }
                     }
                 }
-                Err(_) => return Err(anyhow!("metric sender disconnected")),
+                Err(_) => panic!("All metric senders were dropped, should not happen"),
+            }
+        }
+    }
+
+    async fn observe_metric(
+        metric_get_result: anyhow::Result<Arc<dyn ModifyMetric + Send + Sync>>,
+        inbound_metric: InboundMetric,
+    ) {
+        match metric_get_result {
+            Ok(metric) => metric.observe(inbound_metric.count),
+            Err(error) => {
+                eprintln!(
+                    "Unable to get metric for observation, dropped info from metric {}: {}",
+                    inbound_metric.name, error
+                );
+                tokio::time::sleep(Duration::from_secs(1)).await;
             }
         }
     }
@@ -83,9 +98,9 @@ impl Processor {
         &mut self,
         metric_name: &String,
         metric_type_factory: F,
-    ) -> anyhow::Result<Rc<dyn ModifyMetric>>
+    ) -> anyhow::Result<Arc<dyn ModifyMetric + Send + Sync>>
     where
-        M: Metric + ModifyMetric + Clone,
+        M: Metric + ModifyMetric + Clone + Send + Sync,
     {
         match self.metrics.get(metric_name) {
             Some(metric) => Ok(metric.clone()),
@@ -99,9 +114,9 @@ impl Processor {
                             metric.clone(),
                         );
 
-                        let rc_metric = Rc::new(metric);
+                        let rc_metric = Arc::new(metric);
                         self.metrics.insert(metric_name.clone(), rc_metric.clone());
-                        Ok(rc_metric as Rc<dyn ModifyMetric>)
+                        Ok(rc_metric as Arc<dyn ModifyMetric + Send + Sync>)
                     }
                     Err(_) => Err(anyhow!("unable to lock metric registry for writing")),
                 };

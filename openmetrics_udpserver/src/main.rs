@@ -10,9 +10,10 @@ use crate::processor::{InboundMetric, Processor};
 use crate::serverdensity::aggregator::{ServerDensityAggregator, ServerDensityConfig};
 use crate::udp_server::UdpServer;
 use anyhow::{anyhow, Context};
+use async_channel::unbounded;
 use clap::{Arg, ArgAction, Command};
-use crossbeam_channel::unbounded;
 use prometheus_client::registry::Registry;
+use std::process::exit;
 use std::sync::Arc;
 use tokio::sync::RwLock;
 
@@ -90,29 +91,55 @@ async fn main() -> anyhow::Result<(), anyhow::Error> {
     let processor_config = config.clone();
     let processor_receiver = receiver.clone();
     let processor_registry = metric_registry.clone();
-    tokio::spawn(async move {
+    let processor_handle = tokio::spawn(async move {
         let mut processor = Processor::new(processor_config, processor_registry);
-        processor
-            .run(processor_receiver)
-            .expect("Issue running metric processor");
+        processor.run(processor_receiver).await;
     });
 
     let udp_server_config = config.clone();
-    tokio::spawn(async move {
+    let udp_server_handle = tokio::spawn(async move {
         let udp_server = UdpServer::new(udp_server_config, sender);
-        udp_server
-            .run()
-            .context("Error running UDP server loop")
-            .unwrap();
+        udp_server.run().await;
     });
 
     // server density aggregator
-    tokio::spawn(async move {
+    let server_density_aggregator_handle = tokio::spawn(async move {
         let server_density_config = ServerDensityConfig::from_args(matches);
         let server_density_aggregator = ServerDensityAggregator::new(server_density_config);
-        server_density_aggregator.run(receiver);
+        server_density_aggregator.run(receiver).await;
     });
 
-    http_server::bind(config, metric_registry).await?;
-    Ok(())
+    // bind the http server to serve open metrics requests
+    let http_server_registry = metric_registry.clone();
+    let http_server_handle = http_server::bind(config, http_server_registry);
+
+    // waits for one tasks to fail or interrupt, returns the status code to identity the issue
+    let exit_code = tokio::spawn(async move {
+        tokio::select! {
+            _ = processor_handle => {
+                eprintln!("Metrics processor failed");
+                100
+            }
+            _ = udp_server_handle => {
+                eprintln!("UDP server failed");
+                101
+            }
+            _ = server_density_aggregator_handle => {
+                eprintln!("Server Density aggregator failed");
+                102
+            }
+            _ = http_server_handle => {
+                eprintln!("Http server failed");
+                103
+            }
+            _ = tokio::signal::ctrl_c() => {
+                println!("Quit signal detected, exiting...");
+                0
+            }
+        }
+    })
+    .await
+    .context("Error running main monitor loop")?;
+
+    exit(exit_code)
 }

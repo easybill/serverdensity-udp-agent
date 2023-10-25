@@ -1,42 +1,57 @@
 use crate::config::Config;
-use actix_web::web::Data;
-use actix_web::{get, App, HttpResponse, HttpServer};
+use axum::extract::State;
+use axum::http::StatusCode;
+use axum::response::Response;
+use axum::routing::get;
+use axum::{debug_handler, Router, Server};
 use prometheus_client::encoding::text::encode;
 use prometheus_client::registry::Registry;
+use std::net::SocketAddr;
 use std::sync::Arc;
 use tokio::sync::RwLock;
+use tokio::task::JoinHandle;
 
 #[derive(Clone)]
 struct HttpServerState {
     metric_registry: Arc<RwLock<Registry>>,
 }
 
-#[get("/metrics")]
-async fn get_metrics(state: Data<HttpServerState>) -> HttpResponse {
+#[debug_handler]
+async fn get_metrics(
+    State(state): State<Arc<HttpServerState>>,
+) -> Result<Response<String>, StatusCode> {
     if let Ok(registry) = state.metric_registry.try_read() {
         let mut buffer = String::new();
         if encode(&mut buffer, &registry).is_ok() {
-            return HttpResponse::Ok()
-                .content_type("application/openmetrics-text; version=1.0.0; charset=utf-8")
-                .body(buffer);
+            return Response::builder()
+                .status(StatusCode::OK)
+                .header(
+                    "Content-Type",
+                    "application/openmetrics-text; version=1.0.0; charset=utf-8",
+                )
+                .body(buffer)
+                .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR);
         }
     }
 
-    HttpResponse::InternalServerError().body(String::from("Unable to access metric registry"))
+    Response::builder()
+        .status(StatusCode::LOCKED)
+        .body(String::from("Unable to access metric registry"))
+        .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)
 }
 
-pub(crate) async fn bind(
+pub(crate) fn bind(
     config: Config,
     metric_registry: Arc<RwLock<Registry>>,
-) -> std::io::Result<()> {
-    let state = HttpServerState { metric_registry };
+) -> JoinHandle<Result<(), hyper::Error>> {
+    let state = Arc::new(HttpServerState { metric_registry });
+    let router = Router::new()
+        .route("/metrics", get(get_metrics))
+        .with_state(state);
 
-    HttpServer::new(move || {
-        App::new()
-            .app_data(Data::new(state.clone()))
-            .service(get_metrics)
-    })
-    .bind(config.http_bind)?
-    .run()
-    .await
+    let bind_addr = config
+        .http_bind
+        .parse::<SocketAddr>()
+        .expect("Unable to parse http bind address");
+    tokio::spawn(Server::bind(&bind_addr).serve(router.into_make_service()))
 }

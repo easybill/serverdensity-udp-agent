@@ -1,8 +1,8 @@
 use crate::config::Config;
 use crate::processor::InboundMetric;
+use async_channel::Sender;
 use byteorder::BigEndian;
 use byteorder::ByteOrder;
-use crossbeam_channel::Sender;
 use openmetrics_udpserver_lib::MetricType;
 use std::net::UdpSocket;
 
@@ -19,12 +19,13 @@ impl UdpServer {
         }
     }
 
-    pub fn run(&self) -> anyhow::Result<()> {
-        let mut udp_socket = UdpSocket::bind(&self.config.udp_bind)?;
+    pub async fn run(&self) {
+        let mut udp_socket =
+            UdpSocket::bind(&self.config.udp_bind).expect("Unable to bind UDP Server");
         loop {
             match self.read(&mut udp_socket) {
                 Ok(metric) => {
-                    if let Err(err) = self.metric_sender.send(metric) {
+                    if let Err(err) = self.metric_sender.send(metric).await {
                         eprintln!("Unable to process inbound metric: {}", err);
                     }
                 }
@@ -42,13 +43,13 @@ impl UdpServer {
             .map_err(|_| "Couldn't recv from socket".to_string())?;
 
         if amt <= 6 {
-            return Err("UDP Package size is to small".to_string());
+            return Err("UDP Package size is too small".to_string());
         }
 
         let metric_type = match MetricType::from_u16(BigEndian::read_u16(&buf[0..2])) {
             Some(m) => m,
             None => {
-                return Err("unsupported metric type".to_string());
+                return Err("Got unsupported metric type".to_string());
             }
         };
 
