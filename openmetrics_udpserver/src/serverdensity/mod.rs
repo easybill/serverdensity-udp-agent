@@ -1,5 +1,3 @@
-#![allow(clippy::all)]
-
 use crate::processor::InboundMetric;
 use std::collections::HashMap;
 

@@ -56,7 +56,7 @@ impl ServerDensityConfig {
     fn line_value(&self, line: &str) -> String {
         let value = line
             .trim()
-            .split(":")
+            .split(':')
             .map(|x| x.trim().to_string())
             .collect::<Vec<String>>();
 
@@ -64,32 +64,30 @@ impl ServerDensityConfig {
             return "".to_string();
         }
 
-        return value[1].clone();
+        value[1].clone()
     }
 
     pub fn apply_config_file(&mut self, filename: &str) -> Result<(), String> {
-        let file =
-            File::open(filename).or_else(|_| Err("could not open config file".to_string()))?;
+        let file = File::open(filename).map_err(|_| "could not open config file".to_string())?;
         let mut buf_reader = BufReader::new(file);
 
         let mut content = String::new();
-
         buf_reader
             .read_to_string(&mut content)
-            .or_else(|_| Err("could not read config file".to_string()))?;
+            .map_err(|_| "could not read config file".to_string())?;
 
-        for line in content.split("\n") {
-            if line.trim().starts_with("#") || line.trim().starts_with("[") {
+        for line in content.split('\n') {
+            if line.trim().starts_with('#') || line.trim().starts_with('[') {
                 continue;
             }
 
             if line.trim().starts_with("agent_key") {
-                self.agent_key = self.line_value(&line);
+                self.agent_key = self.line_value(line);
                 continue;
             }
 
             if line.trim().starts_with("sd_account") {
-                self.account_url = self.line_value(&line);
+                self.account_url = self.line_value(line);
                 continue;
             }
         }
@@ -117,7 +115,7 @@ impl ServerDensityAggregator {
     }
 
     pub async fn run(&self, receiver: Receiver<InboundMetric>) {
-        let regex = Regex::new(r"[^0-9a-zA-ZäöüÄÖÜß\-\(\)\._]*").expect("failed to compile regex");
+        let regex = Regex::new(r"[^0-9a-zA-ZäöüÄÖÜß\-()._]*").expect("failed to compile regex");
 
         let mut metricmap = HashMap::new();
         let mut sys_time = SystemTime::now();
@@ -137,7 +135,7 @@ impl ServerDensityAggregator {
                     Ok(metric) => {
                         let metric_name = regex.replace_all(&metric.name, "").trim().to_string();
 
-                        if metric_name == "" {
+                        if metric_name.is_empty() {
                             println!("got empty metric name.");
                             continue;
                         }
@@ -157,7 +155,7 @@ impl ServerDensityAggregator {
                             }
                         };
 
-                        i = i + 1;
+                        i += 1;
 
                         if i == 50_000 {
                             println!(
@@ -199,18 +197,18 @@ impl ServerDensityAggregator {
         for (k, v) in map {
             let len = k.len();
 
-            match k.find(".") {
+            match k.find('.') {
                 Some(index) if index > 0 && index + 1 != len => {
                     outermap
                         .entry(k[..index].to_string())
-                        .or_insert(HashMap::new())
-                        .insert(k[index + 1..].to_string(), v.clone());
+                        .or_default()
+                        .insert(k[index + 1..].to_string(), *v);
                 }
                 _ if k.trim() != "" => {
                     outermap
                         .entry("custom".to_string())
-                        .or_insert(HashMap::new())
-                        .insert(k.to_string(), v.clone());
+                        .or_default()
+                        .insert(k.to_string(), *v);
                 }
                 _ => {}
             };
@@ -220,7 +218,7 @@ impl ServerDensityAggregator {
             .iter()
             .map(|(k, v)| {
                 let mut buf = String::new();
-                buf.push_str("\"");
+                buf.push('"');
                 buf.push_str(k);
                 buf.push_str("\":{");
 
@@ -232,7 +230,7 @@ impl ServerDensityAggregator {
                         .to_string(),
                 );
 
-                buf.push_str("}");
+                buf.push('}');
                 buf
             })
             .collect::<Vec<String>>()
@@ -241,7 +239,7 @@ impl ServerDensityAggregator {
     }
 
     pub fn push_to_serverdensity(&self, metricmap: &mut HashMap<String, i32>) {
-        if metricmap.len() == 0 {
+        if metricmap.is_empty() {
             return;
         }
 
@@ -280,8 +278,8 @@ impl ServerDensityAggregator {
             }
         };
 
-        match &mut res {
-            &mut Ok(ref mut r) => {
+        match res {
+            Ok(ref mut r) => {
                 let mut content = String::new();
                 match r.read_to_string(&mut content) {
                     Ok(_) => {
@@ -292,7 +290,7 @@ impl ServerDensityAggregator {
                     }
                 }
             }
-            &mut Err(ref mut e) => {
+            Err(ref mut e) => {
                 println!("failed to send to serverdensity, status {:?}", e.status());
                 println!("error: {:?}", e);
             }
