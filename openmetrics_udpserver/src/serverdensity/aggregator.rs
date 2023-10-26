@@ -4,7 +4,7 @@ use async_channel::{Receiver, TryRecvError};
 use clap::ArgMatches;
 use openmetrics_udpserver_lib::MetricType;
 use regex::Regex;
-use reqwest::blocking::Client;
+use reqwest::Client;
 use std::collections::HashMap;
 use std::fs::File;
 use std::io::{BufReader, Read};
@@ -186,7 +186,7 @@ impl ServerDensityAggregator {
                 handler_avg.flush(&mut metricmap);
                 handler_peak.flush(&mut metricmap);
                 handler_min.flush(&mut metricmap);
-                self.push_to_serverdensity(&mut metricmap);
+                self.push_to_serverdensity(&mut metricmap).await;
             }
         }
     }
@@ -238,7 +238,7 @@ impl ServerDensityAggregator {
             .to_string()
     }
 
-    pub fn push_to_serverdensity(&self, metricmap: &mut HashMap<String, i32>) {
+    pub async fn push_to_serverdensity(&self, metricmap: &mut HashMap<String, i32>) {
         if metricmap.is_empty() {
             return;
         }
@@ -260,13 +260,14 @@ impl ServerDensityAggregator {
 
         println!("Data to send to ServerDensity Backend {:#?}", &data);
 
-        let mut res = self
+        let res = self
             .http_client
             .post(&self.api_postback_uri)
             .header("X-Forwarded-Host", self.config.account_url.clone())
             .form(data)
             .timeout(Duration::from_secs(30))
-            .send();
+            .send()
+            .await;
 
         let send_data_to_backend_tooked_in_ms = match send_data_to_backend_time.elapsed() {
             Ok(duration) => {
@@ -279,20 +280,20 @@ impl ServerDensityAggregator {
         };
 
         match res {
-            Ok(ref mut r) => {
-                let mut content = String::new();
-                match r.read_to_string(&mut content) {
-                    Ok(_) => {
-                        println!("submitted to serverdensity, tooked {}ms \n--- metrics --- \n{:#?} \n--- Request ---\n{:#?} \n\n{} \n----\n", &send_data_to_backend_tooked_in_ms, data, r, &content);
+            Ok(r) => {
+                let response_status = r.status();
+                match r.text().await {
+                    Ok(content) => {
+                        println!("submitted to serverdensity, took {}ms \n--- metrics --- \n{:#?} \n\n{} \n----\n", &send_data_to_backend_tooked_in_ms, data, &content);
                     }
-                    Err(_) => {
-                        println!("submitted to serverdentity, status: {:?}, but could not read response.", r);
+                    Err(err) => {
+                        println!("submitted to serverdentity, status: {}, but could not read response: {}", response_status, err);
                     }
                 }
             }
-            Err(ref mut e) => {
-                println!("failed to send to serverdensity, status {:?}", e.status());
-                println!("error: {:?}", e);
+            Err(err) => {
+                println!("failed to send to serverdensity, status {:?}", err.status());
+                println!("error: {:?}", err);
             }
         };
     }
