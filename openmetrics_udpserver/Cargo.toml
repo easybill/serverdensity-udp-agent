@@ -10,10 +10,9 @@ clap = "4.4.*"
 bytes = "1.5.*"
 regex = "1.10.*"
 byteorder = "1.5.*"
-async-channel = "2.0.*"
 prometheus-client = "0.21.*"
 hyper = { version = "0.14.*", features = ["http2", "server"] }
-tokio = { version = "1.33.*", features = ["macros", "rt-multi-thread", "signal"] }
+tokio = { version = "1.33.*", features = ["macros", "rt-multi-thread", "signal", "sync"] }
 axum = { version = "0.6.*", features = ["macros", "http1", "tokio"], default-features = false }
 openmetrics_udpserver_lib = { path = "../openmetrics_udpserver_lib" }
 

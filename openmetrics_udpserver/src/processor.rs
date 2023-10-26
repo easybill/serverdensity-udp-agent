@@ -3,14 +3,16 @@ use crate::metrics::resetting_counter::ResettingCounterMetric;
 use crate::metrics::resetting_value_metric::ResettingSingleValMetric;
 use crate::metrics::ModifyMetric;
 use anyhow::anyhow;
-use async_channel::Receiver;
 use openmetrics_udpserver_lib::MetricType;
 use prometheus_client::registry::{Metric, Registry};
 use regex::Regex;
 use std::collections::HashMap;
 use std::sync::Arc;
 use std::time::Duration;
+use tokio::sync::broadcast::error::TryRecvError;
+use tokio::sync::broadcast::Receiver;
 use tokio::sync::RwLock;
+use tokio::task::yield_now;
 
 #[derive(Debug, Clone)]
 pub struct InboundMetric {
@@ -34,11 +36,11 @@ impl Processor {
         }
     }
 
-    pub async fn run(&mut self, receiver: Receiver<InboundMetric>) {
+    pub async fn run(&mut self, mut receiver: Receiver<InboundMetric>) {
         let regex_allowed_chars = Regex::new(r"^[^a-zA-Z_:]|[^a-zA-Z0-9_:]")
             .expect("Unable to compile metrics naming regex, should not happen");
         loop {
-            match receiver.recv().await {
+            match receiver.try_recv() {
                 Ok(inbound_metric) => {
                     let metric_name = regex_allowed_chars
                         .replace_all(&inbound_metric.name.replace('.', "_"), "")
@@ -73,7 +75,12 @@ impl Processor {
                         }
                     }
                 }
-                Err(_) => panic!("All metric senders were dropped, should not happen"),
+                Err(TryRecvError::Empty | TryRecvError::Lagged(_)) => {
+                    yield_now().await;
+                }
+                Err(TryRecvError::Closed) => {
+                    panic!("All metric senders were dropped, should not happen")
+                }
             }
         }
     }

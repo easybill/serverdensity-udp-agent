@@ -10,11 +10,11 @@ use crate::processor::{InboundMetric, Processor};
 use crate::serverdensity::aggregator::{ServerDensityAggregator, ServerDensityConfig};
 use crate::udp_server::UdpServer;
 use anyhow::{anyhow, Context};
-use async_channel::unbounded;
 use clap::{Arg, ArgAction, Command};
 use prometheus_client::registry::Registry;
 use std::process::exit;
 use std::sync::Arc;
+use tokio::sync::broadcast::channel;
 use tokio::sync::RwLock;
 
 #[tokio::main]
@@ -86,10 +86,10 @@ async fn main() -> anyhow::Result<(), anyhow::Error> {
     println!("http host: {}", &config.http_bind);
 
     let metric_registry = Arc::new(RwLock::new(Registry::default()));
-    let (sender, receiver) = unbounded::<InboundMetric>();
+    let (sender, receiver) = channel::<InboundMetric>(100_000);
 
     let processor_config = config.clone();
-    let processor_receiver = receiver.clone();
+    let processor_receiver = sender.subscribe();
     let processor_registry = metric_registry.clone();
     let processor_handle = tokio::spawn(async move {
         let mut processor = Processor::new(processor_config, processor_registry);

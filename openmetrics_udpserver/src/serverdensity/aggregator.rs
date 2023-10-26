@@ -1,6 +1,5 @@
 use crate::processor::InboundMetric;
 use crate::serverdensity::{AverageHandler, MinHandler, PeakHandler, SumHandler};
-use async_channel::{Receiver, TryRecvError};
 use clap::ArgMatches;
 use openmetrics_udpserver_lib::MetricType;
 use regex::Regex;
@@ -9,6 +8,8 @@ use std::collections::HashMap;
 use std::fs::File;
 use std::io::{BufReader, Read};
 use std::time::{Duration, SystemTime};
+use tokio::sync::broadcast::error::TryRecvError;
+use tokio::sync::broadcast::Receiver;
 
 #[derive(Clone)]
 pub struct ServerDensityConfig {
@@ -114,7 +115,7 @@ impl ServerDensityAggregator {
         }
     }
 
-    pub async fn run(&self, receiver: Receiver<InboundMetric>) {
+    pub async fn run(&self, mut receiver: Receiver<InboundMetric>) {
         let regex = Regex::new(r"[^0-9a-zA-ZäöüÄÖÜß\-()._]*").expect("failed to compile regex");
 
         let mut metricmap = HashMap::new();
@@ -163,11 +164,11 @@ impl ServerDensityAggregator {
                             );
                         }
                     }
-                    Err(TryRecvError::Empty) => {
-                        break;
-                    }
                     Err(TryRecvError::Closed) => {
                         panic!("channel disconnected, should never happen.");
+                    }
+                    Err(TryRecvError::Empty | TryRecvError::Lagged(_)) => {
+                        break;
                     }
                 };
             }
