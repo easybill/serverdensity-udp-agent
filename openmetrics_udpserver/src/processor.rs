@@ -40,7 +40,8 @@ impl Processor {
         let regex_allowed_chars = Regex::new(r"^[^a-zA-Z_:]|[^a-zA-Z0-9_:]")
             .expect("Unable to compile metrics naming regex, should not happen");
         loop {
-            match receiver.try_recv() {
+
+            match receiver.recv().await {
                 Ok(inbound_metric) => {
                     let metric_name = regex_allowed_chars
                         .replace_all(&inbound_metric.name.replace('.', "_"), "")
@@ -75,11 +76,9 @@ impl Processor {
                         }
                     }
                 }
-                Err(TryRecvError::Empty | TryRecvError::Lagged(_)) => {
-                    yield_now().await;
-                }
-                Err(TryRecvError::Closed) => {
-                    panic!("All metric senders were dropped, should not happen")
+                Err(e) => {
+                    eprintln!("processor recv error {:#?}, investigate!", e);
+                    ::tokio::time::sleep(Duration::from_millis(300)).await;
                 }
             }
         }

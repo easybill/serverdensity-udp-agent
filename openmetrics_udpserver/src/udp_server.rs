@@ -24,18 +24,17 @@ impl UdpServer {
             .await
             .expect("Unable to bind UDP Server");
         loop {
-            if udp_socket.readable().await.is_ok() {
-                let mut buf = [0; 300];
-                if let Ok(read_bytes) = udp_socket.try_recv(&mut buf) {
-                    match self.decode_buffer(&buf, read_bytes) {
-                        Ok(inbound_metric) => {
-                            if let Err(err) = self.metric_sender.send(inbound_metric) {
-                                eprintln!("Unable to process inbound metric: {}", err);
-                            }
+            let mut buf = [0; 300];
+            if let Ok(read_bytes) = udp_socket.recv(&mut buf).await {
+                match self.decode_buffer(&buf, read_bytes) {
+                    Ok(inbound_metric) => {
+                        if let Err(err) = self.metric_sender.send(inbound_metric) {
+                            eprintln!("Unable to process inbound metric: {}", err);
                         }
-                        Err(err) => {
-                            eprintln!("could not decode message from socket: {}", err);
-                        }
+                    }
+                    Err(err) => {
+                        // it could be, that we are so fast that we read a part of the message, may we need to improve this code.
+                        eprintln!("could not decode message from socket: {}", err);
                     }
                 }
             }

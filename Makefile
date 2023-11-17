@@ -4,9 +4,12 @@ build-linux-on-osx:
 build: build-linux-on-osx
 
 run:
-	RUST_BACKTRACE=1 cargo run -- \
+	cargo run --release -- \
         --udp-bind=127.0.0.1:1113 \
         --http-bind=127.0.0.1:8080 \
+        --token foo\
+        --agent-key foo\
+        --account-url foo\
 	    --debug
 
 example_php_client:

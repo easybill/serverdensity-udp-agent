@@ -132,7 +132,7 @@ impl ServerDensityAggregator {
             loop {
                 let mut i = 0;
 
-                match receiver.try_recv() {
+                match receiver.recv().await {
                     Ok(metric) => {
                         let metric_name = regex.replace_all(&metric.name, "").trim().to_string();
 
@@ -164,11 +164,9 @@ impl ServerDensityAggregator {
                             );
                         }
                     }
-                    Err(TryRecvError::Closed) => {
-                        panic!("channel disconnected, should never happen.");
-                    }
-                    Err(TryRecvError::Empty | TryRecvError::Lagged(_)) => {
-                        break;
+                    Err(e) => {
+                        eprintln!("aggregator recv error {:#?}, investigate!", e);
+                        ::tokio::time::sleep(Duration::from_millis(300)).await;
                     }
                 };
             }
