@@ -21,8 +21,11 @@ pub struct ServerDensityConfig {
 
 impl ServerDensityConfig {
     pub fn from_args(matches: ArgMatches) -> Self {
+        let token_option = matches.get_one::<String>("token");
+        if token_option.is_none() { panic!("'--token' has to be provided, if server density is not disabled with '--disable-server-density'"); }
+
         let mut base_config = ServerDensityConfig {
-            token: matches.get_one::<String>("token").unwrap().to_string(),
+            token: token_option.unwrap().to_string(),
             account_url: matches
                 .get_one::<String>("account-url")
                 .unwrap_or(&"".to_string())

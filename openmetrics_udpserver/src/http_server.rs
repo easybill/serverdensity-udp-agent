@@ -41,7 +41,7 @@ async fn get_metrics(
 }
 
 pub(crate) fn bind(
-    config: Config,
+    config: &Config,
     metric_registry: Arc<RwLock<Registry>>,
 ) -> JoinHandle<Result<(), hyper::Error>> {
     let state = Arc::new(HttpServerState { metric_registry });

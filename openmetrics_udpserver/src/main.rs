@@ -44,10 +44,16 @@ async fn main() -> anyhow::Result<(), anyhow::Error> {
                 .action(ArgAction::SetTrue),
         )
         // ---- ServerDensity Args
+        .arg(
+            Arg::new("disable-server-density")
+                .long("disable-server-density")
+                .help("Disable Server Density push - only provide open metrics pull endpoint")
+                .action(ArgAction::SetTrue),
+        )
         .arg(Arg::new("token")
             .help("Server Density API Token")
             .long("token")
-            .required(true))
+            .required(false))
         .arg(Arg::new("account-url")
             .help("Set this to your Server Density account url, e.g. example.serverdensity.io")
             .long("account-url")
@@ -78,12 +84,14 @@ async fn main() -> anyhow::Result<(), anyhow::Error> {
             .get_one::<String>("http-bind")
             .ok_or(anyhow!("HTTP bind host is missing"))?
             .to_string(),
+        disable_server_density: matches.get_flag("disable-server-density")
     };
 
     println!("UDP Monitor for OpenMetrics");
     println!("debug: {:?}", &config.debug);
     println!("udp host: {}", &config.udp_bind);
     println!("http host: {}", &config.http_bind);
+    println!("disable server density: {}", &config.disable_server_density);
 
     let metric_registry = Arc::new(RwLock::new(Registry::default()));
     let (sender, receiver) = channel::<InboundMetric>(100_000);
@@ -103,15 +111,18 @@ async fn main() -> anyhow::Result<(), anyhow::Error> {
     });
 
     // server density aggregator
-    let server_density_aggregator_handle = tokio::spawn(async move {
-        let server_density_config = ServerDensityConfig::from_args(matches);
-        let server_density_aggregator = ServerDensityAggregator::new(server_density_config);
-        server_density_aggregator.run(receiver).await;
-    });
+    let server_density_aggregator_handle = match config.disable_server_density {
+        false => tokio::spawn(async move {
+            let server_density_config = ServerDensityConfig::from_args(matches);
+            let server_density_aggregator = ServerDensityAggregator::new(server_density_config);
+            server_density_aggregator.run(receiver).await;
+        }),
+        true => tokio::spawn(async {})
+    };
 
     // bind the http server to serve open metrics requests
     let http_server_registry = metric_registry.clone();
-    let http_server_handle = http_server::bind(config, http_server_registry);
+    let http_server_handle = http_server::bind(&config, http_server_registry);
 
     // waits for one tasks to fail or interrupt, returns the status code to identity the issue
     let exit_code = tokio::spawn(async move {
@@ -124,7 +135,7 @@ async fn main() -> anyhow::Result<(), anyhow::Error> {
                 eprintln!("UDP server failed");
                 101
             }
-            _ = server_density_aggregator_handle => {
+            _ = server_density_aggregator_handle, if !config.disable_server_density => {
                 eprintln!("Server Density aggregator failed");
                 102
             }
