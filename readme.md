@@ -1,17 +1,5 @@
 # Prometheus UDP Monitor
 
-this project is not officially supported by server density.
-
-## Arguments:
-
-```
-      --udp-bind <udp-bind>    UDP Server Bind Address. [default: 127.0.0.1:1113]
-      --http-bind <http-bind>  HTTP Server Bind Address. [default: 127.0.0.1:1114]
-  -v, --debug                  verbose mode, just for debugging
-  -h, --help                   Print help
-  -V, --version                Print version
-```
-
 ## Installing
 
 This project is build on each release for Linux & Mac x86, aarch64. You can download these pre-build binaries from
