@@ -45,9 +45,9 @@ async fn main() -> anyhow::Result<(), anyhow::Error> {
         )
         // ---- ServerDensity Args
         .arg(
-            Arg::new("disable-server-density")
-                .long("disable-server-density")
-                .help("Disable Server Density push - only provide open metrics pull endpoint")
+            Arg::new("disable-serverdensity")
+                .long("disable-serverdensity")
+                .help("Disable ServerDensity push - only provide open metrics pull endpoint")
                 .action(ArgAction::SetTrue),
         )
         .arg(Arg::new("token")
@@ -84,20 +84,33 @@ async fn main() -> anyhow::Result<(), anyhow::Error> {
             .get_one::<String>("http-bind")
             .ok_or(anyhow!("HTTP bind host is missing"))?
             .to_string(),
-        disable_server_density: matches.get_flag("disable-server-density")
+        disable_serverdensity: matches.get_flag("disable-serverdensity")
     };
 
     println!("UDP Monitor for OpenMetrics");
     println!("debug: {:?}", &config.debug);
     println!("udp host: {}", &config.udp_bind);
     println!("http host: {}", &config.http_bind);
-    println!("disable server density: {}", &config.disable_server_density);
+    println!("disable serverdensity: {}", &config.disable_serverdensity);
 
     let metric_registry = Arc::new(RwLock::new(Registry::default()));
     let (sender, receiver) = channel::<InboundMetric>(100_000);
 
+
+    // server density aggregator
+    let server_density_aggregator_handle = if config.disable_serverdensity {
+        let server_density_config = ServerDensityConfig::from_args(matches).context("serverdensity args")?;
+        let server_density_aggregator_receiver = sender.subscribe();
+        Some(tokio::spawn(async move {
+            let server_density_aggregator = ServerDensityAggregator::new(server_density_config);
+            server_density_aggregator.run(server_density_aggregator_receiver).await;
+        }))
+    } else {
+        None
+    };
+
     let processor_config = config.clone();
-    let processor_receiver = sender.subscribe();
+    let processor_receiver = receiver;
     let processor_registry = metric_registry.clone();
     let processor_handle = tokio::spawn(async move {
         let mut processor = Processor::new(processor_config, processor_registry);
@@ -110,15 +123,6 @@ async fn main() -> anyhow::Result<(), anyhow::Error> {
         udp_server.run().await;
     });
 
-    // server density aggregator
-    let server_density_aggregator_handle = match config.disable_server_density {
-        false => tokio::spawn(async move {
-            let server_density_config = ServerDensityConfig::from_args(matches);
-            let server_density_aggregator = ServerDensityAggregator::new(server_density_config);
-            server_density_aggregator.run(receiver).await;
-        }),
-        true => tokio::spawn(async {})
-    };
 
     // bind the http server to serve open metrics requests
     let http_server_registry = metric_registry.clone();
@@ -135,8 +139,8 @@ async fn main() -> anyhow::Result<(), anyhow::Error> {
                 eprintln!("UDP server failed");
                 101
             }
-            _ = server_density_aggregator_handle, if !config.disable_server_density => {
-                eprintln!("Server Density aggregator failed");
+            _ = server_density_aggregator_handle.expect("must be given"), if server_density_aggregator_handle.is_some() => {
+                eprintln!("Serverdensity aggregator failed");
                 102
             }
             _ = http_server_handle => {

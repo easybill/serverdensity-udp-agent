@@ -8,10 +8,11 @@ use std::collections::HashMap;
 use std::fs::File;
 use std::io::{BufReader, Read};
 use std::time::{Duration, SystemTime};
+use anyhow::{anyhow, Context};
 use tokio::sync::broadcast::error::TryRecvError;
 use tokio::sync::broadcast::Receiver;
 
-#[derive(Clone)]
+#[derive(Clone, Debug)]
 pub struct ServerDensityConfig {
     pub token: String,
     pub account_url: String,
@@ -20,12 +21,13 @@ pub struct ServerDensityConfig {
 }
 
 impl ServerDensityConfig {
-    pub fn from_args(matches: ArgMatches) -> Self {
+    pub fn from_args(matches: ArgMatches) -> Result<Self, ::anyhow::Error> {
         let token_option = matches.get_one::<String>("token");
-        if token_option.is_none() { panic!("'--token' has to be provided, if server density is not disabled with '--disable-server-density'"); }
 
         let mut base_config = ServerDensityConfig {
-            token: token_option.unwrap().to_string(),
+            token: token_option
+                .context("'--token' has to be provided, if server density is not disabled with '--disable-serverdensity'")?
+                .to_string(),
             account_url: matches
                 .get_one::<String>("account-url")
                 .unwrap_or(&"".to_string())
@@ -36,7 +38,7 @@ impl ServerDensityConfig {
                 .to_string(),
             serverdensity_endpoint: matches
                 .get_one::<String>("serverdensity-endpoint")
-                .unwrap()
+                .context("'--serverdensity-endpoint' has to be provided, if server density is not disabled with '--disable-serverdensity'")?
                 .to_string(),
         };
 
@@ -45,16 +47,16 @@ impl ServerDensityConfig {
             match base_config.apply_config_file(&config_file) {
                 Ok(_) => println!("successfully read config_file: {}", &config_file),
                 Err(_) => {
-                    panic!("could not read config_file: {}", &config_file);
+                    return Err(anyhow!("could not read config_file: {}", &config_file));
                 }
             };
         }
 
         if base_config.agent_key.trim() == "" || base_config.account_url.trim() == "" {
-            panic!("agent-key or account-url not given.");
+            return Err(anyhow!("agent-key or account-url not given."));
         }
 
-        base_config
+        Ok(base_config)
     }
 
     fn line_value(&self, line: &str) -> String {
