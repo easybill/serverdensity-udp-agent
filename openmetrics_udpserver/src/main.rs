@@ -96,22 +96,21 @@ async fn main() -> anyhow::Result<(), anyhow::Error> {
     let metric_registry = Arc::new(RwLock::new(Registry::default()));
     let (sender, receiver) = channel::<InboundMetric>(100_000);
 
-
     // server density aggregator
     let server_density_aggregator_handle = if config.disable_serverdensity {
+        None
+    } else {
         let server_density_config = ServerDensityConfig::from_args(matches).context("serverdensity args")?;
         let server_density_aggregator_receiver = sender.subscribe();
         Some(tokio::spawn(async move {
             let server_density_aggregator = ServerDensityAggregator::new(server_density_config);
             server_density_aggregator.run(server_density_aggregator_receiver).await;
         }))
-    } else {
-        None
     };
 
     let processor_config = config.clone();
-    let processor_receiver = receiver;
     let processor_registry = metric_registry.clone();
+    let processor_receiver = receiver;
     let processor_handle = tokio::spawn(async move {
         let mut processor = Processor::new(processor_config, processor_registry);
         processor.run(processor_receiver).await;
@@ -139,7 +138,7 @@ async fn main() -> anyhow::Result<(), anyhow::Error> {
                 eprintln!("UDP server failed");
                 101
             }
-            _ = server_density_aggregator_handle.expect("must be given"), if server_density_aggregator_handle.is_some() => {
+            _ = async { server_density_aggregator_handle.expect("must be given").await }, if server_density_aggregator_handle.is_some() => {
                 eprintln!("Serverdensity aggregator failed");
                 102
             }

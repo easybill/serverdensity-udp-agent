@@ -124,74 +124,55 @@ impl ServerDensityAggregator {
         let regex = Regex::new(r"[^0-9a-zA-ZäöüÄÖÜß\-()._]*").expect("failed to compile regex");
 
         let mut metricmap = HashMap::new();
-        let mut sys_time = SystemTime::now();
 
         let handler_sum = SumHandler::new();
         let mut handler_avg = AverageHandler::new();
         let handler_peak = PeakHandler::new();
         let handler_min = MinHandler::new();
+        let mut flush_interval = ::tokio::time::interval(Duration::from_secs(10));
 
         loop {
-            tokio::time::sleep(Duration::from_millis(30)).await;
 
-            loop {
-                let mut i = 0;
+            ::tokio::select! {
+                _ = flush_interval.tick() => {
+                    handler_sum.flush(&mut metricmap);
+                    handler_avg.flush(&mut metricmap);
+                    handler_peak.flush(&mut metricmap);
+                    handler_min.flush(&mut metricmap);
+                    self.push_to_serverdensity(&mut metricmap).await;
+                },
+                msg = receiver.recv() => {
+                    match msg {
+                        Ok(metric) => {
+                            let metric_name = regex.replace_all(&metric.name, "").trim().to_string();
 
-                match receiver.recv().await {
-                    Ok(metric) => {
-                        let metric_name = regex.replace_all(&metric.name, "").trim().to_string();
+                            if metric_name.is_empty() {
+                                println!("got empty metric name.");
+                                continue;
+                            }
 
-                        if metric_name.is_empty() {
-                            println!("got empty metric name.");
-                            continue;
+                            match metric.metric_type {
+                                MetricType::Sum => {
+                                    handler_sum.handle(&metric_name, &metric, &mut metricmap);
+                                }
+                                MetricType::Average => {
+                                    handler_avg.handle(&metric_name, &metric, &mut metricmap);
+                                }
+                                MetricType::Peak => {
+                                    handler_peak.handle(&metric_name, &metric, &mut metricmap);
+                                }
+                                MetricType::Min => {
+                                    handler_min.handle(&metric_name, &metric, &mut metricmap);
+                                }
+                            };
                         }
-
-                        match metric.metric_type {
-                            MetricType::Sum => {
-                                handler_sum.handle(&metric_name, &metric, &mut metricmap);
-                            }
-                            MetricType::Average => {
-                                handler_avg.handle(&metric_name, &metric, &mut metricmap);
-                            }
-                            MetricType::Peak => {
-                                handler_peak.handle(&metric_name, &metric, &mut metricmap);
-                            }
-                            MetricType::Min => {
-                                handler_min.handle(&metric_name, &metric, &mut metricmap);
-                            }
-                        };
-
-                        i += 1;
-
-                        if i == 50_000 {
-                            println!(
-                                "got a lot of messages, may more than the server can handel..."
-                            );
+                        Err(e) => {
+                            eprintln!("aggregator recv error {:#?}, investigate!", e);
+                            ::tokio::time::sleep(Duration::from_millis(300)).await;
                         }
-                    }
-                    Err(e) => {
-                        eprintln!("aggregator recv error {:#?}, investigate!", e);
-                        ::tokio::time::sleep(Duration::from_millis(300)).await;
-                    }
-                };
-            }
-
-            let elapsed_time = match sys_time.elapsed() {
-                Ok(t) => t,
-                Err(_) => {
-                    println!("seems to have trouble with the clock, should never happen.");
-                    continue;
+                    };
                 }
             };
-
-            if elapsed_time.as_secs() >= 10 {
-                sys_time = SystemTime::now();
-                handler_sum.flush(&mut metricmap);
-                handler_avg.flush(&mut metricmap);
-                handler_peak.flush(&mut metricmap);
-                handler_min.flush(&mut metricmap);
-                self.push_to_serverdensity(&mut metricmap).await;
-            }
         }
     }
 
