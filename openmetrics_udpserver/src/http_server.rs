@@ -20,24 +20,24 @@ struct HttpServerState {
 async fn get_metrics(
     State(state): State<Arc<HttpServerState>>,
 ) -> Result<Response<String>, StatusCode> {
-    if let Ok(registry) = state.metric_registry.try_read() {
+    let registry = state.metric_registry.read().await;
+    let body = {
         let mut buffer = String::new();
-        if encode(&mut buffer, &registry).is_ok() {
-            return Response::builder()
-                .status(StatusCode::OK)
-                .header(
-                    "Content-Type",
-                    "application/openmetrics-text; version=1.0.0; charset=utf-8",
-                )
-                .body(buffer)
-                .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR);
+        if !encode(&mut buffer, &registry).is_ok() {
+            return Err(StatusCode::INTERNAL_SERVER_ERROR);
         }
-    }
+        buffer
+    };
 
-    Response::builder()
-        .status(StatusCode::LOCKED)
-        .body(String::from("Unable to access metric registry"))
-        .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)
+    return Ok(Response::builder()
+        .status(StatusCode::OK)
+        .header(
+            "Content-Type",
+            "application/openmetrics-text; version=1.0.0; charset=utf-8",
+        )
+        .body(body)
+        .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?
+    );
 }
 
 pub(crate) fn bind(
