@@ -1,4 +1,4 @@
-pub mod resetting_counter;
+pub mod counter;
 pub mod resetting_value_metric;
 
 pub trait ModifyMetric {

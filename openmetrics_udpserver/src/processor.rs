@@ -1,5 +1,5 @@
 use crate::config::Config;
-use crate::metrics::resetting_counter::ResettingCounterMetric;
+use crate::metrics::counter::CounterMetric;
 use crate::metrics::resetting_value_metric::ResettingSingleValMetric;
 use crate::metrics::ModifyMetric;
 use anyhow::anyhow;
@@ -70,7 +70,7 @@ impl Processor {
                         MetricType::Sum => {
                             let metric_get_result = self
                                 .get_or_register_metric(&metric_name, || {
-                                    ResettingCounterMetric::default()
+                                    CounterMetric::default()
                                 });
                             Self::observe_metric(metric_get_result, inbound_metric).await;
                         }
@@ -122,7 +122,7 @@ impl Processor {
 
                         let rc_metric = Arc::new(metric);
                         self.metrics.insert(metric_name.clone(), rc_metric.clone());
-                        Ok(rc_metric as Arc<dyn ModifyMetric + Send + Sync>)
+                        Ok(rc_metric)
                     }
                     Err(_) => Err(anyhow!("unable to lock metric registry for writing")),
                 };

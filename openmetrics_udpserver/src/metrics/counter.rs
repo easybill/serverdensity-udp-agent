@@ -6,11 +6,11 @@ use std::sync::atomic::{AtomicU64, Ordering};
 use std::sync::Arc;
 
 #[derive(Debug, Default, Clone)]
-pub struct ResettingCounterMetric {
+pub struct CounterMetric {
     val: Arc<AtomicU64>,
 }
 
-impl ModifyMetric for ResettingCounterMetric {
+impl ModifyMetric for CounterMetric {
     fn observe(&self, value: i32) {
         if let Ok(val_as_u64) = u64::try_from(value) {
             self.val.fetch_add(val_as_u64, Ordering::Relaxed);
@@ -18,9 +18,9 @@ impl ModifyMetric for ResettingCounterMetric {
     }
 }
 
-impl EncodeMetric for ResettingCounterMetric {
+impl EncodeMetric for CounterMetric {
     fn encode(&self, mut encoder: MetricEncoder) -> Result<(), Error> {
-        let current_value = self.val.swap(0, Ordering::Relaxed);
+        let current_value = self.val.load(Ordering::Relaxed);
         encoder.encode_counter::<(), u64, u64>(&current_value, None)
     }
 
@@ -29,6 +29,6 @@ impl EncodeMetric for ResettingCounterMetric {
     }
 }
 
-impl TypedMetric for ResettingCounterMetric {
+impl TypedMetric for CounterMetric {
     const TYPE: MetricType = MetricType::Counter;
 }
