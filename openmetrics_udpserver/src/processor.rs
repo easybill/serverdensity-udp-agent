@@ -3,7 +3,6 @@ use crate::config::Config;
 use openmetrics_udpserver_lib::MetricType;
 use prometheus_client::registry::{Metric, Registry};
 use regex::Regex;
-use std::collections::HashMap;
 use std::sync::Arc;
 use std::sync::atomic::{AtomicI64, AtomicU64};
 use std::time::Duration;
@@ -21,8 +20,8 @@ pub struct InboundMetric {
 
 pub struct Processor {
     config: Config,
-    counters: HashMap<String, Counter>,
-    gauges: HashMap<String, Gauge>,
+    counters: ::fnv::FnvHashMap<String, Counter>,
+    gauges: ::fnv::FnvHashMap<String, Gauge>,
     metric_registry: Arc<RwLock<Registry>>,
 }
 
@@ -30,8 +29,8 @@ impl Processor {
     pub fn new(config: Config, metric_registry: Arc<RwLock<Registry>>) -> Self {
         Processor {
             config,
-            counters: HashMap::new(),
-            gauges: HashMap::new(),
+            counters: ::fnv::FnvHashMap::default(),
+            gauges: ::fnv::FnvHashMap::default(),
             metric_registry,
         }
     }

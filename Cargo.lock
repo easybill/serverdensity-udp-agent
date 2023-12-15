@@ -614,6 +614,7 @@ dependencies = [
  "byteorder",
  "bytes",
  "clap",
+ "fnv",
  "hyper",
  "md5",
  "openmetrics_udpserver_lib",
