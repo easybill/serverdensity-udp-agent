@@ -33,6 +33,13 @@ pub struct ProcessorMetric {
 
 impl ProcessorMetric {
     pub fn from_inbound(name: String, inbound_metric: InboundMetric) -> Self {
+
+        let name = match inbound_metric.metric_type {
+            // this is some kind of legacy. we would end up with _total_total because the application is already sending _total and the client is also appending _total
+            MetricType::Sum => name.trim_end_matches("_total").to_string(),
+            _ => name,
+        };
+
         Self {
             name,
             count: inbound_metric.count,
