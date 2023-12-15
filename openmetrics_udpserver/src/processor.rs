@@ -1,6 +1,6 @@
 use crate::config::Config;
 use crate::metrics::counter::CounterMetric;
-use crate::metrics::resetting_value_metric::ResettingSingleValMetric;
+use crate::metrics::gauge::GaugeMetric;
 use crate::metrics::ModifyMetric;
 use anyhow::anyhow;
 use openmetrics_udpserver_lib::MetricType;
@@ -63,7 +63,7 @@ impl Processor {
                         MetricType::Min | MetricType::Average | MetricType::Peak => {
                             let metric_get_result = self
                                 .get_or_register_metric(&metric_name, || {
-                                    ResettingSingleValMetric::default()
+                                    GaugeMetric::default()
                                 });
                             Self::observe_metric(metric_get_result, inbound_metric).await;
                         }

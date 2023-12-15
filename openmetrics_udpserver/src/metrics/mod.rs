@@ -1,5 +1,5 @@
 pub mod counter;
-pub mod resetting_value_metric;
+pub mod gauge;
 
 pub trait ModifyMetric {
     fn observe(&self, value: i32);
