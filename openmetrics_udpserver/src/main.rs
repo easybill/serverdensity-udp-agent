@@ -1,6 +1,5 @@
 mod config;
 mod http_server;
-mod metrics;
 mod processor;
 mod serverdensity;
 mod udp_server;
