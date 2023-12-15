@@ -37,17 +37,10 @@ impl Processor {
     }
 
     pub async fn run(&mut self, mut receiver: Receiver<InboundMetric>) {
-        let regex_allowed_chars = Regex::new(r"^[^a-zA-Z_:]|[^a-zA-Z0-9_:]")
-            .expect("Unable to compile metrics naming regex, should not happen");
         loop {
-
             match receiver.recv().await {
                 Ok(inbound_metric) => {
-                    let metric_name = regex_allowed_chars
-                        .replace_all(&inbound_metric.name.replace('.', "_"), "")
-                        .trim()
-                        .to_string();
-                    if metric_name.is_empty() {
+                    if inbound_metric.name.trim().is_empty() {
                         eprintln!("got empty metric name");
                         continue;
                     }
@@ -55,7 +48,7 @@ impl Processor {
                     if self.config.debug {
                         println!(
                             "got metric [type={:?}, name={}, count={}]",
-                            &inbound_metric.metric_type, &metric_name, &inbound_metric.count
+                            &inbound_metric.metric_type, &inbound_metric.name, &inbound_metric.count
                         );
                     }
 
