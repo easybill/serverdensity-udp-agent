@@ -3,6 +3,7 @@ mod http_server;
 mod processor;
 mod serverdensity;
 mod udp_server;
+mod aggragator;
 
 use crate::config::Config;
 use crate::processor::{InboundMetric, Processor};
