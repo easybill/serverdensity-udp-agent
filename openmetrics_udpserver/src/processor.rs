@@ -10,7 +10,7 @@ use prometheus_client::metrics::counter::Counter;
 use prometheus_client::metrics::gauge::Gauge;
 use tokio::sync::broadcast::Receiver;
 use tokio::sync::RwLock;
-use crate::aggragator::AggragatorPeakGauge;
+use crate::aggregator::peak::AggragatorPeakGauge;
 
 #[derive(Debug, Clone)]
 pub struct InboundMetric {
@@ -113,7 +113,7 @@ impl Processor {
 
         match processor_metric.metric_type {
             MetricType::Peak => self.aggregator_peak_gauge.handle(&processor_metric),
-            MetricType::Min | MetricType::Average => self.handle_gauge(&processor_metric).await,
+            MetricType::Min | MetricType::Average => self.handle_gauge(processor_metric.name.clone(), processor_metric.count).await,
             MetricType::Sum => self.handle_counter(&processor_metric).await,
         }
     }
