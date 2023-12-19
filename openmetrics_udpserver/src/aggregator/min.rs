@@ -1,11 +1,11 @@
 use fnv::FnvHashMap;
 use crate::processor::ProcessorMetric;
 
-pub struct AggragatorPeakGauge {
+pub struct AggragatorMinGauge {
     buffer: FnvHashMap<String, u64>,
 }
 
-impl AggragatorPeakGauge {
+impl AggragatorMinGauge {
     pub fn new() -> Self {
         Self {
             buffer: FnvHashMap::default(),
@@ -15,7 +15,7 @@ impl AggragatorPeakGauge {
     pub fn handle(&mut self, metric: &ProcessorMetric) {
         let e: &mut u64 = self.buffer.entry(metric.name.clone()).or_insert(metric.count);
 
-        if *e < metric.count {
+        if *e > metric.count {
             *e = metric.count;
         }
     }

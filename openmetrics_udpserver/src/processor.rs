@@ -10,6 +10,8 @@ use prometheus_client::metrics::counter::Counter;
 use prometheus_client::metrics::gauge::Gauge;
 use tokio::sync::broadcast::Receiver;
 use tokio::sync::RwLock;
+use crate::aggregator::average::AggragatorAverageGauge;
+use crate::aggregator::min::AggragatorMinGauge;
 use crate::aggregator::peak::AggragatorPeakGauge;
 
 #[derive(Debug, Clone)]
@@ -24,6 +26,8 @@ pub struct Processor {
     counters: ::fnv::FnvHashMap<String, Counter>,
     gauges: ::fnv::FnvHashMap<String, Gauge>,
     aggregator_peak_gauge: AggragatorPeakGauge,
+    aggregator_min_gauge: AggragatorMinGauge,
+    aggregator_average_gauge: AggragatorAverageGauge,
     metric_registry: Arc<RwLock<Registry>>,
 }
 
@@ -57,6 +61,8 @@ impl Processor {
             counters: ::fnv::FnvHashMap::default(),
             gauges: ::fnv::FnvHashMap::default(),
             aggregator_peak_gauge: AggragatorPeakGauge::new(),
+            aggregator_min_gauge: AggragatorMinGauge::new(),
+            aggregator_average_gauge: AggragatorAverageGauge::new(),
             metric_registry,
         }
     }
@@ -65,7 +71,7 @@ impl Processor {
         let regex_allowed_chars = Regex::new(r"^[^a-zA-Z_:]|[^a-zA-Z0-9_:]")
             .expect("Unable to compile metrics naming regex, should not happen");
 
-        let mut aggregation_interval = ::tokio::time::interval(Duration::from_secs(60));
+        let mut aggregation_interval = ::tokio::time::interval(Duration::from_secs(30));
 
         loop {
             ::tokio::select! {
@@ -86,6 +92,14 @@ impl Processor {
     }
 
     async fn handle_aggragation_flush(&mut self) {
+        for (k, v) in self.aggregator_average_gauge.reset_and_fetch().into_iter() {
+            self.handle_gauge(k, v).await
+        }
+
+        for (k, v) in self.aggregator_min_gauge.reset_and_fetch().into_iter() {
+            self.handle_gauge(k, v).await
+        }
+
         for (k, v) in self.aggregator_peak_gauge.reset_and_fetch().into_iter() {
             self.handle_gauge(k, v).await
         }
@@ -113,7 +127,8 @@ impl Processor {
 
         match processor_metric.metric_type {
             MetricType::Peak => self.aggregator_peak_gauge.handle(&processor_metric),
-            MetricType::Min | MetricType::Average => self.handle_gauge(processor_metric.name.clone(), processor_metric.count).await,
+            MetricType::Min => self.aggregator_min_gauge.handle(&processor_metric),
+            MetricType::Average => self.aggregator_average_gauge.handle(&processor_metric),
             MetricType::Sum => self.handle_counter(&processor_metric).await,
         }
     }
