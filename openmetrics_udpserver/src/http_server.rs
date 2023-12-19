@@ -37,7 +37,7 @@ async fn get_metrics(
         .status(StatusCode::OK)
         .header(
             "Content-Type",
-            "application/openmetrics-text; version=1.0.0; charset=utf-8",
+            "text/plain; charset=utf-8",
         )
         .body(body)
         .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?
@@ -45,13 +45,12 @@ async fn get_metrics(
 }
 
 async fn index() -> Result<Response<Body>, StatusCode> {
-    let body = Body::from("<html><body>Metrics: <a href=\"/metrics\">Prometheus</a></body></html>");
-    let response = Response::builder()
+    let body = Body::from("<html><body><a href=\"/metrics\">/metrics</a></body></html>");
+    return Response::builder()
         .status(StatusCode::OK)
         .header("Content-Type", "text/html")
         .body(body)
-        .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
-    return Ok(response)
+        .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR);
 }
 
 
