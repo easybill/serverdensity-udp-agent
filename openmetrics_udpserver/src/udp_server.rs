@@ -5,6 +5,7 @@ use byteorder::ByteOrder;
 use openmetrics_udpserver_lib::MetricType;
 use tokio::net::UdpSocket;
 use tokio::sync::broadcast::Sender;
+use crate::{METRIC_COUNTER_ERRORS, METRIC_COUNTER_UDP_PACKETS};
 
 pub struct UdpServer {
     config: Config,
@@ -29,10 +30,12 @@ impl UdpServer {
                 match self.decode_buffer(&buf, read_bytes) {
                     Ok(inbound_metric) => {
                         if let Err(err) = self.metric_sender.send(inbound_metric) {
+                            METRIC_COUNTER_ERRORS.inc();
                             eprintln!("Unable to process inbound metric: {}", err);
                         }
                     }
                     Err(err) => {
+                        METRIC_COUNTER_ERRORS.inc();
                         // it could be, that we are so fast that we read a part of the message, may we need to improve this code.
                         eprintln!("could not decode message from socket: {}", err);
                     }
@@ -52,6 +55,7 @@ impl UdpServer {
             .to_string()
             .replace('"', "");
 
+        METRIC_COUNTER_UDP_PACKETS.inc();
         Ok(InboundMetric {
             count,
             name,

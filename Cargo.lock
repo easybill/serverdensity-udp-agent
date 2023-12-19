@@ -617,6 +617,7 @@ dependencies = [
  "fnv",
  "hyper",
  "md5",
+ "once_cell",
  "openmetrics_udpserver_lib",
  "prometheus-client",
  "regex",

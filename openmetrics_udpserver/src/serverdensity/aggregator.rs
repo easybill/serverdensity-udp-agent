@@ -11,6 +11,7 @@ use std::time::{Duration, SystemTime};
 use anyhow::{anyhow, Context};
 use tokio::sync::broadcast::error::TryRecvError;
 use tokio::sync::broadcast::Receiver;
+use crate::METRIC_COUNTER_ERRORS;
 
 #[derive(Clone, Debug)]
 pub struct ServerDensityConfig {
@@ -167,6 +168,7 @@ impl ServerDensityAggregator {
                             };
                         }
                         Err(e) => {
+                            METRIC_COUNTER_ERRORS.inc();
                             eprintln!("aggregator recv error {:#?}, investigate!", e);
                             ::tokio::time::sleep(Duration::from_millis(300)).await;
                         }
@@ -259,6 +261,7 @@ impl ServerDensityAggregator {
                 (duration.as_secs() * 1000) + (duration.subsec_nanos() as u64 / 1000000)
             }
             Err(_) => {
+                METRIC_COUNTER_ERRORS.inc();
                 println!("seems to have trouble with the clock, should never happen.");
                 return;
             }
@@ -272,11 +275,13 @@ impl ServerDensityAggregator {
                         println!("submitted to serverdensity, took {}ms \n--- metrics --- \n{:#?} \n\n{} \n----\n", &send_data_to_backend_tooked_in_ms, data, &content);
                     }
                     Err(err) => {
+                        METRIC_COUNTER_ERRORS.inc();
                         println!("submitted to serverdentity, status: {}, but could not read response: {}", response_status, err);
                     }
                 }
             }
             Err(err) => {
+                METRIC_COUNTER_ERRORS.inc();
                 println!("failed to send to serverdensity, status {:?}", err.status());
                 println!("error: {:?}", err);
             }

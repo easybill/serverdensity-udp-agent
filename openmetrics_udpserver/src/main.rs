@@ -13,9 +13,17 @@ use anyhow::{anyhow, Context};
 use clap::{Arg, ArgAction, Command};
 use prometheus_client::registry::Registry;
 use std::process::exit;
-use std::sync::Arc;
+use std::sync::{Arc};
+use once_cell::sync::Lazy;
+use prometheus_client::metrics::counter::Counter;
 use tokio::sync::broadcast::channel;
 use tokio::sync::RwLock;
+
+
+pub static METRIC_COUNTER_REQUESTS: Lazy<Counter<u64>> = Lazy::new(|| Default::default());
+pub static METRIC_COUNTER_ERRORS: Lazy<Counter<u64>> = Lazy::new(|| Default::default());
+pub static METRIC_COUNTER_UDP_PACKETS: Lazy<Counter<u64>> = Lazy::new(|| Default::default());
+
 
 #[tokio::main]
 async fn main() -> anyhow::Result<(), anyhow::Error> {
@@ -93,7 +101,12 @@ async fn main() -> anyhow::Result<(), anyhow::Error> {
     println!("http host: {}", &config.http_bind);
     println!("disable serverdensity: {}", &config.disable_serverdensity);
 
-    let metric_registry = Arc::new(RwLock::new(Registry::default()));
+    let mut registry = Registry::default();
+    registry.register("udpagent.requests.metrics", "requests to /metrics", METRIC_COUNTER_REQUESTS.clone());
+    registry.register("udpagent.errors", "internal errors", METRIC_COUNTER_ERRORS.clone());
+    registry.register("udpagent.udppackets", "udp packets", METRIC_COUNTER_UDP_PACKETS.clone());
+
+    let metric_registry = Arc::new(RwLock::new(registry));
     let (sender, receiver) = channel::<InboundMetric>(100_000);
 
     // server density aggregator

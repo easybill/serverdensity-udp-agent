@@ -10,6 +10,7 @@ use std::net::SocketAddr;
 use std::sync::Arc;
 use tokio::sync::RwLock;
 use tokio::task::JoinHandle;
+use crate::METRIC_COUNTER_REQUESTS;
 
 #[derive(Clone)]
 struct HttpServerState {
@@ -20,6 +21,8 @@ struct HttpServerState {
 async fn get_metrics(
     State(state): State<Arc<HttpServerState>>,
 ) -> Result<Response<String>, StatusCode> {
+    METRIC_COUNTER_REQUESTS.inc();
+
     let registry = state.metric_registry.read().await;
     let body = {
         let mut buffer = String::new();

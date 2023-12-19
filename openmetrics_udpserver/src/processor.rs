@@ -13,6 +13,7 @@ use tokio::sync::RwLock;
 use crate::aggregator::average::AggragatorAverageGauge;
 use crate::aggregator::min::AggragatorMinGauge;
 use crate::aggregator::peak::AggragatorPeakGauge;
+use crate::METRIC_COUNTER_ERRORS;
 
 #[derive(Debug, Clone)]
 pub struct InboundMetric {
@@ -82,6 +83,7 @@ impl Processor {
                     match msg {
                         Ok(inbound_metric) => self.handle_metric(&regex_allowed_chars, inbound_metric).await,
                         Err(e) => {
+                            METRIC_COUNTER_ERRORS.inc();
                             eprintln!("processor recv error {:#?}, investigate!", e);
                             ::tokio::time::sleep(Duration::from_millis(300)).await;
                         }
