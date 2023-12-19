@@ -2,6 +2,7 @@ use crate::config::Config;
 use axum::extract::State;
 use axum::http::StatusCode;
 use axum::response::Response;
+use axum::body::Body;
 use axum::routing::get;
 use axum::{debug_handler, Router, Server};
 use prometheus_client::encoding::text::encode;
@@ -43,12 +44,24 @@ async fn get_metrics(
     );
 }
 
+async fn index() -> Result<Response<Body>, StatusCode> {
+    let body = Body::from("<html><body>Metrics: <a href=\"/metrics\">Prometheus</a></body></html>");
+    let response = Response::builder()
+        .status(StatusCode::OK)
+        .header("Content-Type", "text/html")
+        .body(body)
+        .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
+    return Ok(response)
+}
+
+
 pub(crate) fn bind(
     config: &Config,
     metric_registry: Arc<RwLock<Registry>>,
 ) -> JoinHandle<Result<(), hyper::Error>> {
     let state = Arc::new(HttpServerState { metric_registry });
     let router = Router::new()
+        .route("/", get(index))
         .route("/metrics", get(get_metrics))
         .with_state(state);
 
