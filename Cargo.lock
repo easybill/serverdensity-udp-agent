@@ -702,7 +702,6 @@ dependencies = [
  "bytes",
  "clap",
  "fnv",
- "hyper 0.14.28",
  "md5",
  "once_cell",
  "openmetrics_udpserver_lib",
