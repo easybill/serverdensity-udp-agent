@@ -1,9 +1,9 @@
+mod aggregator;
 mod config;
 mod http_server;
 mod processor;
 mod serverdensity;
 mod udp_server;
-mod aggregator;
 
 use crate::config::Config;
 use crate::processor::{InboundMetric, Processor};
@@ -11,19 +11,17 @@ use crate::serverdensity::aggregator::{ServerDensityAggregator, ServerDensityCon
 use crate::udp_server::UdpServer;
 use anyhow::{anyhow, Context};
 use clap::{Arg, ArgAction, Command};
-use prometheus_client::registry::Registry;
-use std::process::exit;
-use std::sync::{Arc};
 use once_cell::sync::Lazy;
 use prometheus_client::metrics::counter::Counter;
+use prometheus_client::registry::Registry;
+use std::process::exit;
+use std::sync::Arc;
 use tokio::sync::broadcast::channel;
 use tokio::sync::RwLock;
 
-
-pub static METRIC_COUNTER_REQUESTS: Lazy<Counter<u64>> = Lazy::new(|| Default::default());
-pub static METRIC_COUNTER_ERRORS: Lazy<Counter<u64>> = Lazy::new(|| Default::default());
-pub static METRIC_COUNTER_UDP_PACKETS: Lazy<Counter<u64>> = Lazy::new(|| Default::default());
-
+pub static METRIC_COUNTER_REQUESTS: Lazy<Counter<u64>> = Lazy::new(Default::default);
+pub static METRIC_COUNTER_ERRORS: Lazy<Counter<u64>> = Lazy::new(Default::default);
+pub static METRIC_COUNTER_UDP_PACKETS: Lazy<Counter<u64>> = Lazy::new(Default::default);
 
 #[tokio::main]
 async fn main() -> anyhow::Result<(), anyhow::Error> {
@@ -92,7 +90,7 @@ async fn main() -> anyhow::Result<(), anyhow::Error> {
             .get_one::<String>("http-bind")
             .ok_or(anyhow!("HTTP bind host is missing"))?
             .to_string(),
-        disable_serverdensity: matches.get_flag("disable-serverdensity")
+        disable_serverdensity: matches.get_flag("disable-serverdensity"),
     };
 
     println!("UDP Monitor for OpenMetrics");
@@ -102,9 +100,21 @@ async fn main() -> anyhow::Result<(), anyhow::Error> {
     println!("disable serverdensity: {}", &config.disable_serverdensity);
 
     let mut registry = Registry::default();
-    registry.register("udpagent.requests.metrics", "requests to /metrics", METRIC_COUNTER_REQUESTS.clone());
-    registry.register("udpagent.errors", "internal errors", METRIC_COUNTER_ERRORS.clone());
-    registry.register("udpagent.udppackets", "udp packets", METRIC_COUNTER_UDP_PACKETS.clone());
+    registry.register(
+        "udpagent.requests.metrics",
+        "requests to /metrics",
+        METRIC_COUNTER_REQUESTS.clone(),
+    );
+    registry.register(
+        "udpagent.errors",
+        "internal errors",
+        METRIC_COUNTER_ERRORS.clone(),
+    );
+    registry.register(
+        "udpagent.udppackets",
+        "udp packets",
+        METRIC_COUNTER_UDP_PACKETS.clone(),
+    );
 
     let metric_registry = Arc::new(RwLock::new(registry));
     let (sender, receiver) = channel::<InboundMetric>(100_000);
@@ -113,11 +123,14 @@ async fn main() -> anyhow::Result<(), anyhow::Error> {
     let server_density_aggregator_handle = if config.disable_serverdensity {
         None
     } else {
-        let server_density_config = ServerDensityConfig::from_args(matches).context("serverdensity args")?;
+        let server_density_config =
+            ServerDensityConfig::from_args(matches).context("serverdensity args")?;
         let server_density_aggregator_receiver = sender.subscribe();
         Some(tokio::spawn(async move {
             let server_density_aggregator = ServerDensityAggregator::new(server_density_config);
-            server_density_aggregator.run(server_density_aggregator_receiver).await;
+            server_density_aggregator
+                .run(server_density_aggregator_receiver)
+                .await;
         }))
     };
 
@@ -134,7 +147,6 @@ async fn main() -> anyhow::Result<(), anyhow::Error> {
         let udp_server = UdpServer::new(udp_server_config, sender);
         udp_server.run().await;
     });
-
 
     // bind the http server to serve open metrics requests
     let http_server_registry = metric_registry.clone();

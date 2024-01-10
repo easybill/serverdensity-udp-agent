@@ -1,19 +1,19 @@
-use std::collections::hash_map::Entry;
-use crate::config::Config;
-use openmetrics_udpserver_lib::MetricType;
-use prometheus_client::registry::{Metric, Registry};
-use regex::Regex;
-use std::sync::Arc;
-use std::sync::atomic::{AtomicI64, AtomicU64};
-use std::time::Duration;
-use prometheus_client::metrics::counter::Counter;
-use prometheus_client::metrics::gauge::Gauge;
-use tokio::sync::broadcast::Receiver;
-use tokio::sync::RwLock;
 use crate::aggregator::average::AggragatorAverageGauge;
 use crate::aggregator::min::AggragatorMinGauge;
 use crate::aggregator::peak::AggragatorPeakGauge;
+use crate::config::Config;
 use crate::METRIC_COUNTER_ERRORS;
+use openmetrics_udpserver_lib::MetricType;
+use prometheus_client::metrics::counter::Counter;
+use prometheus_client::metrics::gauge::Gauge;
+use prometheus_client::registry::Registry;
+use regex::Regex;
+use std::collections::hash_map::Entry;
+use std::sync::atomic::{AtomicI64, AtomicU64};
+use std::sync::Arc;
+use std::time::Duration;
+use tokio::sync::broadcast::Receiver;
+use tokio::sync::RwLock;
 
 #[derive(Debug, Clone)]
 pub struct InboundMetric {
@@ -40,7 +40,6 @@ pub struct ProcessorMetric {
 
 impl ProcessorMetric {
     pub fn from_inbound(name: String, inbound_metric: InboundMetric) -> Self {
-
         let name = match inbound_metric.metric_type {
             // this is some kind of legacy. we would end up with _total_total because the application is already sending _total and the client is also appending _total
             MetricType::Sum => name.trim_end_matches("_total").to_string(),
@@ -138,11 +137,11 @@ impl Processor {
     async fn handle_counter(&mut self, metric: &ProcessorMetric) {
         match self.counters.entry(metric.name.clone()) {
             Entry::Occupied(mut v) => {
-                v.get_mut().inc_by(metric.count as u64);
-            },
+                v.get_mut().inc_by(metric.count);
+            }
             Entry::Vacant(vacant) => {
                 let counter = Counter::<u64, AtomicU64>::default();
-                counter.inc_by(metric.count as u64);
+                counter.inc_by(metric.count);
                 vacant.insert(counter.clone());
 
                 {
@@ -157,9 +156,9 @@ impl Processor {
         match self.gauges.entry(metric_name.clone()) {
             Entry::Occupied(mut v) => {
                 v.get_mut().set(metric_count as i64);
-            },
+            }
             Entry::Vacant(vacant) => {
-                let mut gauge = Gauge::<i64, AtomicI64>::default();
+                let gauge = Gauge::<i64, AtomicI64>::default();
                 gauge.set(metric_count as i64);
                 vacant.insert(gauge.clone());
 

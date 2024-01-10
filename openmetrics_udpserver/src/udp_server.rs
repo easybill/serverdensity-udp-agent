@@ -1,11 +1,11 @@
 use crate::config::Config;
 use crate::processor::InboundMetric;
+use crate::{METRIC_COUNTER_ERRORS, METRIC_COUNTER_UDP_PACKETS};
 use byteorder::BigEndian;
 use byteorder::ByteOrder;
 use openmetrics_udpserver_lib::MetricType;
 use tokio::net::UdpSocket;
 use tokio::sync::broadcast::Sender;
-use crate::{METRIC_COUNTER_ERRORS, METRIC_COUNTER_UDP_PACKETS};
 
 pub struct UdpServer {
     config: Config,

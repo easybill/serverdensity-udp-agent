@@ -1,5 +1,5 @@
-use fnv::FnvHashMap;
 use crate::processor::ProcessorMetric;
+use fnv::FnvHashMap;
 
 pub struct AverageBucket {
     pub sum: u64,
@@ -21,16 +21,16 @@ impl AggragatorAverageGauge {
         let bucket: &mut AverageBucket = self
             .buffer
             .entry(metric.name.clone())
-            .or_insert(AverageBucket {sum: 0, count: 0});
+            .or_insert(AverageBucket { sum: 0, count: 0 });
 
-        bucket.sum += metric.count as u64;
+        bucket.sum += metric.count;
         bucket.count += 1;
     }
 
     pub fn reset_and_fetch(&mut self) -> FnvHashMap<String, u64> {
         let mut buf = FnvHashMap::default();
         for (k, v) in &self.buffer {
-            buf.insert(k.to_string(), (v.sum / v.count) as u64);
+            buf.insert(k.to_string(), v.sum / v.count);
         }
 
         buf

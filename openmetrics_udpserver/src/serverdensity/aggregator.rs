@@ -1,5 +1,7 @@
 use crate::processor::InboundMetric;
 use crate::serverdensity::{AverageHandler, MinHandler, PeakHandler, SumHandler};
+use crate::METRIC_COUNTER_ERRORS;
+use anyhow::{anyhow, Context};
 use clap::ArgMatches;
 use openmetrics_udpserver_lib::MetricType;
 use regex::Regex;
@@ -8,10 +10,7 @@ use std::collections::HashMap;
 use std::fs::File;
 use std::io::{BufReader, Read};
 use std::time::{Duration, SystemTime};
-use anyhow::{anyhow, Context};
-use tokio::sync::broadcast::error::TryRecvError;
 use tokio::sync::broadcast::Receiver;
-use crate::METRIC_COUNTER_ERRORS;
 
 #[derive(Clone, Debug)]
 pub struct ServerDensityConfig {
@@ -133,7 +132,6 @@ impl ServerDensityAggregator {
         let mut flush_interval = ::tokio::time::interval(Duration::from_secs(10));
 
         loop {
-
             ::tokio::select! {
                 _ = flush_interval.tick() => {
                     handler_sum.flush(&mut metricmap);
@@ -174,7 +172,7 @@ impl ServerDensityAggregator {
                         }
                     };
                 }
-            };
+            }
         }
     }
 

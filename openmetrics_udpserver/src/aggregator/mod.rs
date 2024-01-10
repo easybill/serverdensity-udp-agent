@@ -1,3 +1,3 @@
-pub mod peak;
-pub mod min;
 pub mod average;
+pub mod min;
+pub mod peak;

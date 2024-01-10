@@ -29,20 +29,20 @@ async fn get_metrics(
     let registry = state.metric_registry.read().await;
     let body = {
         let mut buffer = String::new();
-        if !encode(&mut buffer, &registry).is_ok() {
+        if encode(&mut buffer, &registry).is_err() {
             return Err(StatusCode::INTERNAL_SERVER_ERROR);
         }
         buffer
     };
 
-    return Ok(Response::builder()
+    Response::builder()
         .status(StatusCode::OK)
         .header(
             "Content-Type",
             "application/openmetrics-text; version=1.0.0; charset=utf-8",
         )
         .body(body)
-        .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?);
+        .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)
 }
 
 pub(crate) fn bind(
