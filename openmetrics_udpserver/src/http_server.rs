@@ -1,15 +1,18 @@
-use crate::config::Config;
+use std::net::SocketAddr;
+use std::sync::Arc;
+
 use axum::extract::State;
 use axum::http::StatusCode;
 use axum::response::Response;
 use axum::routing::get;
-use axum::{debug_handler, Router, Server};
+use axum::{debug_handler, Router};
 use prometheus_client::encoding::text::encode;
 use prometheus_client::registry::Registry;
-use std::net::SocketAddr;
-use std::sync::Arc;
+use tokio::net::TcpListener;
 use tokio::sync::RwLock;
 use tokio::task::JoinHandle;
+
+use crate::config::Config;
 use crate::METRIC_COUNTER_REQUESTS;
 
 #[derive(Clone)]
@@ -39,14 +42,13 @@ async fn get_metrics(
             "application/openmetrics-text; version=1.0.0; charset=utf-8",
         )
         .body(body)
-        .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?
-    );
+        .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?);
 }
 
 pub(crate) fn bind(
     config: &Config,
     metric_registry: Arc<RwLock<Registry>>,
-) -> JoinHandle<Result<(), hyper::Error>> {
+) -> JoinHandle<Result<(), std::io::Error>> {
     let state = Arc::new(HttpServerState { metric_registry });
     let router = Router::new()
         .route("/metrics", get(get_metrics))
@@ -56,5 +58,10 @@ pub(crate) fn bind(
         .http_bind
         .parse::<SocketAddr>()
         .expect("Unable to parse http bind address");
-    tokio::spawn(Server::bind(&bind_addr).serve(router.into_make_service()))
+    tokio::spawn(async move {
+        let listener = TcpListener::bind(bind_addr)
+            .await
+            .expect("Unable to bind TCP listener");
+        axum::serve(listener, router).await
+    })
 }
