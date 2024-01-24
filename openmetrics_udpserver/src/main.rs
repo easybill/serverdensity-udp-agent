@@ -101,17 +101,17 @@ async fn main() -> anyhow::Result<(), anyhow::Error> {
 
     let mut registry = Registry::default();
     registry.register(
-        "udpagent.requests.metrics",
+        "udpagent_requests_metrics",
         "requests to /metrics",
         METRIC_COUNTER_REQUESTS.clone(),
     );
     registry.register(
-        "udpagent.errors",
+        "udpagent_errors",
         "internal errors",
         METRIC_COUNTER_ERRORS.clone(),
     );
     registry.register(
-        "udpagent.udppackets",
+        "udpagent_udppackets",
         "udp packets",
         METRIC_COUNTER_UDP_PACKETS.clone(),
     );
