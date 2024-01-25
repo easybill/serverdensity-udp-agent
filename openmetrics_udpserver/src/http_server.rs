@@ -2,8 +2,9 @@ use std::net::SocketAddr;
 use std::sync::Arc;
 
 use axum::extract::State;
-use axum::http::StatusCode;
-use axum::response::Response;
+use axum::http::header::ACCEPT;
+use axum::http::{HeaderMap, StatusCode};
+use axum::response::{Html, Response};
 use axum::routing::get;
 use axum::{debug_handler, Router};
 use prometheus_client::encoding::text::encode;
@@ -20,11 +21,27 @@ struct HttpServerState {
     metric_registry: Arc<RwLock<Registry>>,
 }
 
+async fn get_index() -> Html<String> {
+    Html("<html><body><a href=\"/metrics\">/metrics</a></body></html>".to_string())
+}
+
 #[debug_handler]
 async fn get_metrics(
+    headers: HeaderMap,
     State(state): State<Arc<HttpServerState>>,
 ) -> Result<Response<String>, StatusCode> {
     METRIC_COUNTER_REQUESTS.inc();
+
+    // very basic accept header matching to return text/plain in case no open metrics format was requested
+    let accept = headers
+        .get(ACCEPT)
+        .and_then(|value| value.to_str().ok())
+        .unwrap_or("text/plain");
+    let response_content_type = if accept.contains("application/openmetrics-text") {
+        "application/openmetrics-text; version=1.0.0"
+    } else {
+        "text/plain"
+    };
 
     let registry = state.metric_registry.read().await;
     let body = {
@@ -39,7 +56,7 @@ async fn get_metrics(
         .status(StatusCode::OK)
         .header(
             "Content-Type",
-            "application/openmetrics-text; version=1.0.0; charset=utf-8",
+            format!("{}; charset=utf-8", response_content_type),
         )
         .body(body)
         .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)
@@ -51,6 +68,7 @@ pub(crate) fn bind(
 ) -> JoinHandle<Result<(), std::io::Error>> {
     let state = Arc::new(HttpServerState { metric_registry });
     let router = Router::new()
+        .route("/", get(get_index))
         .route("/metrics", get(get_metrics))
         .with_state(state);
 
