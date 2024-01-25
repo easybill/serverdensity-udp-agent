@@ -23,7 +23,7 @@ pub static METRIC_COUNTER_REQUESTS: Lazy<Counter<u64>> = Lazy::new(Default::defa
 pub static METRIC_COUNTER_ERRORS: Lazy<Counter<u64>> = Lazy::new(Default::default);
 pub static METRIC_COUNTER_UDP_PACKETS: Lazy<Counter<u64>> = Lazy::new(Default::default);
 
-const VERSION: Option<&str> = option_env!("BUILD_VERSION");
+const VERSION: Option<&str> = option_env!("CARGO_PKG_VERSION");
 
 #[tokio::main]
 async fn main() -> anyhow::Result<(), anyhow::Error> {

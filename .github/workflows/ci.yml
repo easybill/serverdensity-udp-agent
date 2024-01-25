@@ -75,6 +75,12 @@ jobs:
           toolchain: stable
           targets: ${{ matrix.platform.target }}
 
+      - name: Install Cargo Edit
+        run: cargo install cargo-edit
+
+      - name: Set Crate Version
+        run: cargo set-version ${{ steps.get_release_version.outputs.version }}
+
       - name: Initialize Rust caching
         uses: Swatinem/rust-cache@v2
         with:
@@ -82,8 +88,6 @@ jobs:
 
       - name: Compile Binary
         uses: clechasseur/rs-cargo@v2
-        env:
-          BUILD_VERSION: ${{ steps.get_release_version.outputs.version }}
         with:
           command: build
           use-cross: true
