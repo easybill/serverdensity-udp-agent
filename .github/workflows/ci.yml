@@ -1,75 +1,131 @@
-name: CI
+name: "CI"
+
 on:
   push:
     branches: [ "**" ]
-    tags: [ "v*.*.*" ]
+    tags-ignore: [ "**" ]
+  pull_request:
+  workflow_dispatch:
+    inputs:
+      release:
+        type: boolean
+        description: Publish Release
 
 concurrency:
-  group: ci-${{ github.ref }}
   cancel-in-progress: true
+  group: ci-${{ github.event.pull_request.number || github.ref }}
 
 jobs:
-  build:
-    name: Build rust ${{ matrix.platform.target }}/${{ matrix.platform.os }}
-    runs-on: ${{ matrix.platform.os }}
+  check:
+    name: Run checks
+    runs-on: ubuntu-latest
+
     permissions:
+      checks: write
       contents: read
 
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Install stable toolchain
+        uses: dtolnay/rust-toolchain@nightly
+        with:
+          components: rustfmt, clippy
+
+      - name: Run rustfmt
+        uses: clechasseur/rs-fmt-check@v2
+
+      - name: Run clippy
+        uses: clechasseur/rs-clippy-check@v3
+
+  build:
+    permissions: read-all
+    runs-on: ${{ matrix.platform.os }}
+    name: Compile ${{ matrix.platform.target }} / ${{ matrix.platform.os }}
+
     strategy:
-      fail-fast: false
+      fail-fast: true
       matrix:
         platform:
           # mac target
-          - { os: 'macos-latest', target: 'x86_64-apple-darwin', arch: 'x86_64', osn: 'mac', cross: true }
-          - { os: 'macos-latest', target: 'aarch64-apple-darwin', arch: 'aarch64', osn: 'mac', cross: true }
+          - { os: 'macos-latest', target: 'x86_64-apple-darwin', arch: 'x86_64', osn: 'mac' }
+          - { os: 'macos-latest', target: 'aarch64-apple-darwin', arch: 'aarch64', osn: 'mac' }
           # linux target
-          - { os: 'ubuntu-latest', target: 'x86_64-unknown-linux-musl', arch: 'x86_64', osn: 'linux', cross: true }
-          - { os: 'ubuntu-latest', target: 'aarch64-unknown-linux-musl', arch: 'aarch64', osn: 'linux', cross: true }
+          - { os: 'ubuntu-latest', target: 'x86_64-unknown-linux-musl', arch: 'x86_64', osn: 'linux' }
+          - { os: 'ubuntu-latest', target: 'aarch64-unknown-linux-musl', arch: 'aarch64', osn: 'linux' }
 
     steps:
-      - name: Checkout Repository
+      - name: Checkout repository
         uses: actions/checkout@v4
 
-      - name: Setup rust toolchain
+      - name: Setup Rust
         uses: dtolnay/rust-toolchain@stable
         with:
           toolchain: stable
           targets: ${{ matrix.platform.target }}
 
-      - name: Build binary
+      - name: Initialize Rust caching
+        uses: Swatinem/rust-cache@v2
+        with:
+          key: ${{ matrix.platform.target }}
+
+      - name: Compile Binary
         uses: clechasseur/rs-cargo@v2
         with:
           command: build
-          use-cross: ${{ matrix.platform.cross }}
-          args: --release --target=${{ matrix.platform.target }} --bin=openmetrics_udpserver
+          use-cross: true
+          args: --release --target ${{ matrix.platform.target }} --bin openmetrics_udpserver
 
-      - name: Prepare output artifact for next step
+      - name: Move artifacts
         run: |
           mkdir -p artifact
-          mv target/${{ matrix.platform.target }}/release/openmetrics_udpserver artifact/openmetrics_udpserver_${{ matrix.platform.osn }}_${{ matrix.platform.arch }}
+          cp target/${{ matrix.platform.target }}/release/openmetrics_udpserver artifact/openmetrics_udpserver_${{ matrix.platform.osn }}_${{ matrix.platform.arch }}
 
-      - name: Upload output artifact for next step
-        uses: actions/upload-artifact@v3
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
         with:
           name: openmetrics_udpserver_${{ matrix.platform.osn }}_${{ matrix.platform.arch }}
           path: artifact/openmetrics_udpserver_${{ matrix.platform.osn }}_${{ matrix.platform.arch }}
 
   release:
-    runs-on: 'ubuntu-latest'
-    needs: [ "build" ]
+    needs: [ "check", "build" ]
+    name: Publish Release
+    runs-on: ubuntu-latest
+    if: ${{ github.event_name == 'workflow_dispatch' && github.event.inputs.release == 'true' }}
+
     permissions:
       contents: write
 
     steps:
-      - name: Load build artifacts
-        uses: actions/download-artifact@v3
+      - name: Build tag name
+        env:
+          RUN: ${{ github.run_number }}
+          ATTEMPT: ${{ github.run_attempt }}
+        run: echo "TAG_NAME=1.$RUN.$(($ATTEMPT - 1))" >> $GITHUB_ENV;
+
+      - name: Download artifacts
+        uses: actions/download-artifact@v4
         with:
           path: binaries
 
+      - name: Generate changelog
+        id: changelog_generate
+        uses: mikepenz/release-changelog-builder-action@v4
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          ignorePreReleases: true
+          toTag: ${{ github.sha }}
+          configurationJson: '{"max_tags_to_fetch":5,"commitMode":true}'
+
       - name: Create Release
         uses: softprops/action-gh-release@v1
-        if: startsWith(github.ref, 'refs/tags/')
         with:
+          draft: false
+          prerelease: false
+          tag_name: ${{ env.TAG_NAME }}
+          body: ${{steps.changelog_generate.outputs.changelog}}
           fail_on_unmatched_files: true
           files: |
             binaries/*/*
