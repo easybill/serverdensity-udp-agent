@@ -23,10 +23,13 @@ pub static METRIC_COUNTER_REQUESTS: Lazy<Counter<u64>> = Lazy::new(Default::defa
 pub static METRIC_COUNTER_ERRORS: Lazy<Counter<u64>> = Lazy::new(Default::default);
 pub static METRIC_COUNTER_UDP_PACKETS: Lazy<Counter<u64>> = Lazy::new(Default::default);
 
+const VERSION: Option<&str> = option_env!("BUILD_VERSION");
+
 #[tokio::main]
 async fn main() -> anyhow::Result<(), anyhow::Error> {
+    let version = VERSION.unwrap_or("DEV");
     let matches = Command::new("Prometheus UDP Monitor")
-        .version("2.0")
+        .version(version)
         .about("UDP Sender for Prometheus")
         .arg(
             Arg::new("udp-bind")

@@ -44,6 +44,9 @@ jobs:
     runs-on: ${{ matrix.platform.os }}
     name: Compile ${{ matrix.platform.target }} / ${{ matrix.platform.os }}
 
+    outputs:
+      release_version: ${{ steps.get_release_version.outputs.version }}
+
     strategy:
       fail-fast: true
       matrix:
@@ -56,6 +59,13 @@ jobs:
           - { os: 'ubuntu-latest', target: 'aarch64-unknown-linux-musl', arch: 'aarch64', osn: 'linux' }
 
     steps:
+      - name: Get release version
+        id: get_release_version
+        env:
+          RUN: ${{ github.run_number }}
+          ATTEMPT: ${{ github.run_attempt }}
+        run: echo "version=1.$RUN.$(($ATTEMPT - 1))" >> $GITHUB_OUTPUT;
+
       - name: Checkout repository
         uses: actions/checkout@v4
 
@@ -72,6 +82,8 @@ jobs:
 
       - name: Compile Binary
         uses: clechasseur/rs-cargo@v2
+        env:
+          BUILD_VERSION: ${{ steps.get_release_version.outputs.version }}
         with:
           command: build
           use-cross: true
@@ -98,12 +110,6 @@ jobs:
       contents: write
 
     steps:
-      - name: Build tag name
-        env:
-          RUN: ${{ github.run_number }}
-          ATTEMPT: ${{ github.run_attempt }}
-        run: echo "TAG_NAME=1.$RUN.$(($ATTEMPT - 1))" >> $GITHUB_ENV;
-
       - name: Download artifacts
         uses: actions/download-artifact@v4
         with:
@@ -124,7 +130,7 @@ jobs:
         with:
           draft: false
           prerelease: false
-          tag_name: ${{ env.TAG_NAME }}
+          tag_name: ${{ needs.build.outputs.release_version }}
           body: ${{steps.changelog_generate.outputs.changelog}}
           fail_on_unmatched_files: true
           files: |
