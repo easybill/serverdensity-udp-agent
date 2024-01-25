@@ -64,7 +64,7 @@ jobs:
         env:
           RUN: ${{ github.run_number }}
           ATTEMPT: ${{ github.run_attempt }}
-        run: echo "version=1.$RUN.$(($ATTEMPT - 1))" >> $GITHUB_OUTPUT;
+        run: echo "version=0.$RUN.$(($ATTEMPT - 1))" >> $GITHUB_OUTPUT;
 
       - name: Checkout repository
         uses: actions/checkout@v4
