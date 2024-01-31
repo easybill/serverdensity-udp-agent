@@ -9,7 +9,11 @@ on:
     inputs:
       release:
         type: boolean
+        default: false
         description: Publish Release
+      version:
+        required: true
+        description: 'Version string, e.g. 2.3.1'
 
 concurrency:
   cancel-in-progress: true
@@ -44,9 +48,6 @@ jobs:
     runs-on: ${{ matrix.platform.os }}
     name: Compile ${{ matrix.platform.target }} / ${{ matrix.platform.os }}
 
-    outputs:
-      release_version: ${{ steps.get_release_version.outputs.version }}
-
     strategy:
       fail-fast: true
       matrix:
@@ -59,13 +60,6 @@ jobs:
           - { os: 'ubuntu-latest', target: 'aarch64-unknown-linux-musl', arch: 'aarch64', osn: 'linux' }
 
     steps:
-      - name: Get release version
-        id: get_release_version
-        env:
-          RUN: ${{ github.run_number }}
-          ATTEMPT: ${{ github.run_attempt }}
-        run: echo "version=0.$RUN.$(($ATTEMPT - 1))" >> $GITHUB_OUTPUT;
-
       - name: Checkout repository
         uses: actions/checkout@v4
 
@@ -76,10 +70,12 @@ jobs:
           targets: ${{ matrix.platform.target }}
 
       - name: Install Cargo Edit
+        if: ${{ github.event_name == 'workflow_dispatch' && github.event.inputs.release == 'true' }}
         run: cargo install cargo-edit
 
       - name: Set Crate Version
-        run: cargo set-version ${{ steps.get_release_version.outputs.version }}
+        if: ${{ github.event_name == 'workflow_dispatch' && github.event.inputs.release == 'true' }}
+        run: cargo set-version ${{ github.event.inputs.version }}
 
       - name: Initialize Rust caching
         uses: Swatinem/rust-cache@v2
@@ -134,7 +130,7 @@ jobs:
         with:
           draft: false
           prerelease: false
-          tag_name: ${{ needs.build.outputs.release_version }}
+          tag_name: ${{ github.event.inputs.version }}
           body: ${{steps.changelog_generate.outputs.changelog}}
           fail_on_unmatched_files: true
           files: |
