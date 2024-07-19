@@ -12,7 +12,7 @@ bytes = "1.6.*"
 regex = "1.10.*"
 byteorder = "1.5.*"
 prometheus-client = "0.22.*"
-tokio = { version = "1.37.*", features = ["macros", "rt-multi-thread", "signal", "sync"] }
+tokio = { version = "1.38.*", features = ["macros", "rt-multi-thread", "signal", "sync"] }
 axum = { version = "0.7.*", features = ["macros", "http1", "tokio"], default-features = false }
 openmetrics_udpserver_lib = { path = "../openmetrics_udpserver_lib" }
 
