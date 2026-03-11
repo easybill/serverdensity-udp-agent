@@ -126,7 +126,7 @@ jobs:
           configurationJson: '{"max_tags_to_fetch":5,"commitMode":true}'
 
       - name: Create Release
-        uses: softprops/action-gh-release@v1
+        uses: softprops/action-gh-release@v2
         with:
           draft: false
           prerelease: false
