@@ -38,7 +38,7 @@ jobs:
           components: rustfmt, clippy
 
       - name: Run rustfmt
-        uses: clechasseur/rs-fmt-check@v2
+        uses: clechasseur/rs-fmt-check@v3
 
       - name: Run clippy
         uses: clechasseur/rs-clippy-check@v3
