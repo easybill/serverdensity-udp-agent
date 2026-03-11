@@ -83,7 +83,7 @@ jobs:
           key: ${{ matrix.platform.target }}
 
       - name: Compile Binary
-        uses: clechasseur/rs-cargo@v2
+        uses: clechasseur/rs-cargo@v4
         with:
           command: build
           use-cross: true
