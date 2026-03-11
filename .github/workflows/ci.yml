@@ -86,7 +86,7 @@ jobs:
         uses: clechasseur/rs-cargo@v4
         with:
           command: build
-          use-cross: true
+          tool: cross
           args: --release --target ${{ matrix.platform.target }} --bin openmetrics_udpserver
 
       - name: Move artifacts
