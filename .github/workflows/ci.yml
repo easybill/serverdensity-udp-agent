@@ -95,7 +95,7 @@ jobs:
           cp target/${{ matrix.platform.target }}/release/openmetrics_udpserver artifact/openmetrics_udpserver_${{ matrix.platform.osn }}_${{ matrix.platform.arch }}
 
       - name: Upload artifact
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: openmetrics_udpserver_${{ matrix.platform.osn }}_${{ matrix.platform.arch }}
           path: artifact/openmetrics_udpserver_${{ matrix.platform.osn }}_${{ matrix.platform.arch }}
