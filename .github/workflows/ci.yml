@@ -41,7 +41,7 @@ jobs:
         uses: clechasseur/rs-fmt-check@v3
 
       - name: Run clippy
-        uses: clechasseur/rs-clippy-check@v3
+        uses: clechasseur/rs-clippy-check@v5
 
   build:
     permissions: read-all
