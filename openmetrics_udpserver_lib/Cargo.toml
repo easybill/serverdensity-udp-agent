@@ -5,5 +5,5 @@ authors = ["timglabisch <tim@ainfach.de>"]
 edition = "2021"
 
 [dependencies]
-bytes = "1.6.*"
+bytes = "1.11.*"
 thiserror = "1.0.*"

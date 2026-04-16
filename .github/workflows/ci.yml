@@ -30,7 +30,7 @@ jobs:
 
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
 
       - name: Install stable toolchain
         uses: dtolnay/rust-toolchain@nightly
@@ -38,10 +38,10 @@ jobs:
           components: rustfmt, clippy
 
       - name: Run rustfmt
-        uses: clechasseur/rs-fmt-check@v2
+        uses: clechasseur/rs-fmt-check@v3
 
       - name: Run clippy
-        uses: clechasseur/rs-clippy-check@v3
+        uses: clechasseur/rs-clippy-check@v5
 
   build:
     permissions: read-all
@@ -61,7 +61,7 @@ jobs:
 
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
 
       - name: Setup Rust
         uses: dtolnay/rust-toolchain@stable
@@ -83,10 +83,10 @@ jobs:
           key: ${{ matrix.platform.target }}
 
       - name: Compile Binary
-        uses: clechasseur/rs-cargo@v2
+        uses: clechasseur/rs-cargo@v4
         with:
           command: build
-          use-cross: true
+          tool: cross
           args: --release --target ${{ matrix.platform.target }} --bin openmetrics_udpserver
 
       - name: Move artifacts
@@ -95,7 +95,7 @@ jobs:
           cp target/${{ matrix.platform.target }}/release/openmetrics_udpserver artifact/openmetrics_udpserver_${{ matrix.platform.osn }}_${{ matrix.platform.arch }}
 
       - name: Upload artifact
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: openmetrics_udpserver_${{ matrix.platform.osn }}_${{ matrix.platform.arch }}
           path: artifact/openmetrics_udpserver_${{ matrix.platform.osn }}_${{ matrix.platform.arch }}
@@ -111,13 +111,13 @@ jobs:
 
     steps:
       - name: Download artifacts
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v8
         with:
           path: binaries
 
       - name: Generate changelog
         id: changelog_generate
-        uses: mikepenz/release-changelog-builder-action@v4
+        uses: mikepenz/release-changelog-builder-action@v6
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
@@ -126,7 +126,7 @@ jobs:
           configurationJson: '{"max_tags_to_fetch":5,"commitMode":true}'
 
       - name: Create Release
-        uses: softprops/action-gh-release@v1
+        uses: softprops/action-gh-release@v3
         with:
           draft: false
           prerelease: false
