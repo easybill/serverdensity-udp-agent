@@ -9,7 +9,7 @@ fnv = "1.*"
 anyhow = "*"
 clap = "4.5.*"
 bytes = "1.11.*"
-regex = "1.10.*"
+regex = "1.12.*"
 byteorder = "1.5.*"
 
 prometheus-client = "0.24.*"
