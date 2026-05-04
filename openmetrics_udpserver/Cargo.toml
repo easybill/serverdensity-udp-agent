@@ -7,7 +7,7 @@ edition = "2021"
 [dependencies]
 fnv = "1.*"
 anyhow = "*"
-clap = "4.5.*"
+clap = "4.6.*"
 bytes = "1.11.*"
 regex = "1.10.*"
 byteorder = "1.5.*"
